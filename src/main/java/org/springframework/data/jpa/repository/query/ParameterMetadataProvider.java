@@ -1,11 +1,11 @@
 /*
- * Copyright 2011-2018 the original author or authors.
+ * Copyright 2011-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.ParameterExpression;
@@ -31,11 +32,13 @@ import org.springframework.data.repository.query.Parameter;
 import org.springframework.data.repository.query.Parameters;
 import org.springframework.data.repository.query.ParametersParameterAccessor;
 import org.springframework.data.repository.query.parser.Part;
+import org.springframework.data.repository.query.parser.Part.IgnoreCaseType;
 import org.springframework.data.repository.query.parser.Part.Type;
 import org.springframework.expression.Expression;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -46,6 +49,7 @@ import org.springframework.util.ObjectUtils;
  * @author Mark Paluch
  * @author Christoph Strobl
  * @author Jens Schauder
+ * @author Andrey Kovalev
  */
 class ParameterMetadataProvider {
 
@@ -54,6 +58,7 @@ class ParameterMetadataProvider {
 	private final List<ParameterMetadata<?>> expressions;
 	private final @Nullable Iterator<Object> bindableParameterValues;
 	private final PersistenceProvider persistenceProvider;
+	private final EscapeCharacter escape;
 
 	/**
 	 * Creates a new {@link ParameterMetadataProvider} from the given {@link CriteriaBuilder} and
@@ -63,10 +68,11 @@ class ParameterMetadataProvider {
 	 * @param builder must not be {@literal null}.
 	 * @param accessor must not be {@literal null}.
 	 * @param provider must not be {@literal null}.
+	 * @param escape
 	 */
 	public ParameterMetadataProvider(CriteriaBuilder builder, ParametersParameterAccessor accessor,
-			PersistenceProvider provider) {
-		this(builder, accessor.iterator(), accessor.getParameters(), provider);
+			PersistenceProvider provider, EscapeCharacter escape) {
+		this(builder, accessor.iterator(), accessor.getParameters(), provider, escape);
 	}
 
 	/**
@@ -76,9 +82,11 @@ class ParameterMetadataProvider {
 	 * @param builder must not be {@literal null}.
 	 * @param parameters must not be {@literal null}.
 	 * @param provider must not be {@literal null}.
+	 * @param escape
 	 */
-	public ParameterMetadataProvider(CriteriaBuilder builder, Parameters<?, ?> parameters, PersistenceProvider provider) {
-		this(builder, null, parameters, provider);
+	public ParameterMetadataProvider(CriteriaBuilder builder, Parameters<?, ?> parameters, PersistenceProvider provider,
+			EscapeCharacter escape) {
+		this(builder, null, parameters, provider, escape);
 	}
 
 	/**
@@ -90,9 +98,10 @@ class ParameterMetadataProvider {
 	 * @param bindableParameterValues may be {@literal null}.
 	 * @param parameters must not be {@literal null}.
 	 * @param provider must not be {@literal null}.
+	 * @param escape
 	 */
 	private ParameterMetadataProvider(CriteriaBuilder builder, @Nullable Iterator<Object> bindableParameterValues,
-			Parameters<?, ?> parameters, PersistenceProvider provider) {
+			Parameters<?, ?> parameters, PersistenceProvider provider, EscapeCharacter escape) {
 
 		Assert.notNull(builder, "CriteriaBuilder must not be null!");
 		Assert.notNull(parameters, "Parameters must not be null!");
@@ -103,6 +112,7 @@ class ParameterMetadataProvider {
 		this.expressions = new ArrayList<>();
 		this.bindableParameterValues = bindableParameterValues;
 		this.persistenceProvider = provider;
+		this.escape = escape;
 	}
 
 	/**
@@ -111,7 +121,7 @@ class ParameterMetadataProvider {
 	 * @return the expressions
 	 */
 	public List<ParameterMetadata<?>> getExpressions() {
-		return Collections.unmodifiableList(expressions);
+		return expressions;
 	}
 
 	/**
@@ -120,7 +130,7 @@ class ParameterMetadataProvider {
 	@SuppressWarnings("unchecked")
 	public <T> ParameterMetadata<T> next(Part part) {
 
-		Assert.isTrue(parameters.hasNext(), String.format("No parameter available for part %s.", part));
+		Assert.isTrue(parameters.hasNext(), () -> String.format("No parameter available for part %s.", part));
 
 		Parameter parameter = parameters.next();
 		return (ParameterMetadata<T>) next(part, parameter.getType(), parameter);
@@ -170,15 +180,20 @@ class ParameterMetadataProvider {
 
 		Object value = bindableParameterValues == null ? ParameterMetadata.PLACEHOLDER : bindableParameterValues.next();
 
-		ParameterMetadata<T> metadata = new ParameterMetadata<>(expression, part.getType(), value, persistenceProvider);
+		ParameterMetadata<T> metadata = new ParameterMetadata<>(expression, part, value, persistenceProvider, escape);
 		expressions.add(metadata);
 
 		return metadata;
 	}
 
+	EscapeCharacter getEscape() {
+		return escape;
+	}
+
 	/**
 	 * @author Oliver Gierke
 	 * @author Thomas Darimont
+	 * @author Andrey Kovalev
 	 * @param <T>
 	 */
 	static class ParameterMetadata<T> {
@@ -188,16 +203,20 @@ class ParameterMetadataProvider {
 		private final Type type;
 		private final ParameterExpression<T> expression;
 		private final PersistenceProvider persistenceProvider;
+		private final EscapeCharacter escape;
+		private final boolean ignoreCase;
 
 		/**
 		 * Creates a new {@link ParameterMetadata}.
 		 */
-		public ParameterMetadata(ParameterExpression<T> expression, Type type, @Nullable Object value,
-				PersistenceProvider provider) {
+		public ParameterMetadata(ParameterExpression<T> expression, Part part, @Nullable Object value,
+				PersistenceProvider provider, EscapeCharacter escape) {
 
 			this.expression = expression;
 			this.persistenceProvider = provider;
-			this.type = value == null && Type.SIMPLE_PROPERTY.equals(type) ? Type.IS_NULL : type;
+			this.type = value == null && Type.SIMPLE_PROPERTY.equals(part.getType()) ? Type.IS_NULL : part.getType();
+			this.ignoreCase = IgnoreCaseType.ALWAYS.equals(part.shouldIgnoreCase());
+			this.escape = escape;
 		}
 
 		/**
@@ -232,19 +251,19 @@ class ParameterMetadataProvider {
 
 				switch (type) {
 					case STARTING_WITH:
-						return String.format("%s%%", value.toString());
+						return String.format("%s%%", escape.escape(value.toString()));
 					case ENDING_WITH:
-						return String.format("%%%s", value.toString());
+						return String.format("%%%s", escape.escape(value.toString()));
 					case CONTAINING:
 					case NOT_CONTAINING:
-						return String.format("%%%s%%", value.toString());
+						return String.format("%%%s%%", escape.escape(value.toString()));
 					default:
 						return value;
 				}
 			}
 
 			return Collection.class.isAssignableFrom(expressionType) //
-					? persistenceProvider.potentiallyConvertEmptyCollection(toCollection(value)) //
+					? persistenceProvider.potentiallyConvertEmptyCollection(upperIfIgnoreCase(ignoreCase, toCollection(value))) //
 					: value;
 		}
 
@@ -272,6 +291,21 @@ class ParameterMetadataProvider {
 			}
 
 			return Collections.singleton(value);
+		}
+
+		@Nullable
+		@SuppressWarnings("unchecked")
+		private static Collection<?> upperIfIgnoreCase(boolean ignoreCase, @Nullable Collection<?> collection) {
+
+			if (!ignoreCase || CollectionUtils.isEmpty(collection)) {
+				return collection;
+			}
+
+			return ((Collection<String>) collection).stream() //
+					.map(it -> it == null //
+							? null //
+							: it.toUpperCase()) //
+					.collect(Collectors.toList());
 		}
 	}
 }

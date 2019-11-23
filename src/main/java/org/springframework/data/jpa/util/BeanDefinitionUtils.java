@@ -1,11 +1,11 @@
 /*
- * Copyright 2014-2018 the original author or authors.
+ * Copyright 2014-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +17,8 @@ package org.springframework.data.jpa.util;
 
 import static java.util.Arrays.*;
 import static org.springframework.beans.factory.BeanFactoryUtils.*;
+
+import lombok.EqualsAndHashCode;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -72,8 +74,8 @@ public class BeanDefinitionUtils {
 	 */
 	public static Iterable<String> getEntityManagerFactoryBeanNames(ListableBeanFactory beanFactory) {
 
-		Set<String> names = new HashSet<String>();
-		names.addAll(asList(beanNamesForTypeIncludingAncestors(beanFactory, EntityManagerFactory.class, true, false)));
+		String[] beanNames = beanNamesForTypeIncludingAncestors(beanFactory, EntityManagerFactory.class, true, false);
+		Set<String> names = new HashSet<>(asList(beanNames));
 
 		for (String factoryBeanName : beanNamesForTypeIncludingAncestors(beanFactory,
 				AbstractEntityManagerFactoryBean.class, true, false)) {
@@ -93,7 +95,7 @@ public class BeanDefinitionUtils {
 	public static Collection<EntityManagerFactoryBeanDefinition> getEntityManagerFactoryBeanDefinitions(
 			ConfigurableListableBeanFactory beanFactory) {
 
-		List<EntityManagerFactoryBeanDefinition> definitions = new ArrayList<EntityManagerFactoryBeanDefinition>();
+		Set<EntityManagerFactoryBeanDefinition> definitions = new HashSet<EntityManagerFactoryBeanDefinition>();
 
 		for (Class<?> type : EMF_TYPES) {
 
@@ -120,7 +122,7 @@ public class BeanDefinitionUtils {
 	 * @param definitions
 	 */
 	private static void registerEntityManagerFactoryBeanDefinition(String name,
-			ConfigurableListableBeanFactory beanFactory, List<EntityManagerFactoryBeanDefinition> definitions) {
+			ConfigurableListableBeanFactory beanFactory, Collection<EntityManagerFactoryBeanDefinition> definitions) {
 
 		BeanDefinition definition = beanFactory.getBeanDefinition(name);
 
@@ -168,6 +170,7 @@ public class BeanDefinitionUtils {
 	 * @author Oliver Gierke
 	 * @author Thomas Darimont
 	 */
+	@EqualsAndHashCode
 	public static class EntityManagerFactoryBeanDefinition {
 
 		private final String beanName;

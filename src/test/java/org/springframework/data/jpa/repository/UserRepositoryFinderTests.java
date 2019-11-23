@@ -1,11 +1,11 @@
 /*
- * Copyright 2008-2018 the original author or authors.
+ * Copyright 2008-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,7 @@
  */
 package org.springframework.data.jpa.repository;
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.*;
 import static org.springframework.data.domain.Sort.Direction.*;
 
 import java.util.Arrays;
@@ -30,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.sample.Role;
@@ -45,8 +45,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Integration test for executing finders, thus testing various query lookup strategies.
  *
- * @see QueryLookupStrategy
  * @author Oliver Gierke
+ * @see QueryLookupStrategy
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = "classpath:config/namespace-application-context.xml")
@@ -85,7 +85,7 @@ public class UserRepositoryFinderTests {
 	public void testSimpleCustomCreatedFinder() {
 
 		User user = userRepository.findByEmailAddressAndLastname("dave@dmband.com", "Matthews");
-		assertEquals(dave, user);
+		assertThat(user).isEqualTo(dave);
 	}
 
 	/**
@@ -96,7 +96,7 @@ public class UserRepositoryFinderTests {
 	public void returnsNullIfNothingFound() {
 
 		User user = userRepository.findByEmailAddress("foobar");
-		assertEquals(null, user);
+		assertThat(user).isNull();
 	}
 
 	/**
@@ -107,26 +107,25 @@ public class UserRepositoryFinderTests {
 
 		List<User> users = userRepository.findByEmailAddressAndLastnameOrFirstname("dave@dmband.com", "Matthews", "Carter");
 
-		assertNotNull(users);
-		assertEquals(2, users.size());
-		assertTrue(users.contains(dave));
-		assertTrue(users.contains(carter));
+		assertThat(users).isNotNull();
+		assertThat(users).containsExactlyInAnyOrder(dave, carter);
 	}
 
 	@Test
 	public void executesPagingMethodToPageCorrectly() {
 
 		Page<User> page = userRepository.findByLastname(PageRequest.of(0, 1), "Matthews");
-		assertThat(page.getNumberOfElements(), is(1));
-		assertThat(page.getTotalElements(), is(2L));
-		assertThat(page.getTotalPages(), is(2));
+
+		assertThat(page.getNumberOfElements()).isEqualTo(1);
+		assertThat(page.getTotalElements()).isEqualTo(2L);
+		assertThat(page.getTotalPages()).isEqualTo(2);
 	}
 
 	@Test
 	public void executesPagingMethodToListCorrectly() {
 
 		List<User> list = userRepository.findByFirstname("Carter", PageRequest.of(0, 1));
-		assertThat(list.size(), is(1));
+		assertThat(list).containsExactly(carter);
 	}
 
 	@Test
@@ -134,54 +133,57 @@ public class UserRepositoryFinderTests {
 
 		Page<User> page = userRepository.findByFirstnameIn(PageRequest.of(0, 1), "Dave", "Oliver August");
 
-		assertThat(page.getNumberOfElements(), is(1));
-		assertThat(page.getTotalElements(), is(2L));
-		assertThat(page.getTotalPages(), is(2));
+		assertThat(page.getNumberOfElements()).isEqualTo(1);
+		assertThat(page.getTotalElements()).isEqualTo(2L);
+		assertThat(page.getTotalPages()).isEqualTo(2);
 	}
 
 	@Test
 	public void executesNotInQueryCorrectly() throws Exception {
 
 		List<User> result = userRepository.findByFirstnameNotIn(Arrays.asList("Dave", "Carter"));
-		assertThat(result.size(), is(1));
-		assertThat(result.get(0), is(oliver));
+
+		assertThat(result).containsExactly(oliver);
 	}
 
 	@Test // DATAJPA-92
-	public void findsByLastnameIgnoringCase() throws Exception {
+	public void findsByLastnameIgnoringCase() {
+
 		List<User> result = userRepository.findByLastnameIgnoringCase("BeAUfoRd");
-		assertThat(result.size(), is(1));
-		assertThat(result.get(0), is(carter));
+
+		assertThat(result).containsExactly(carter);
 	}
 
 	@Test // DATAJPA-92
 	public void findsByLastnameIgnoringCaseLike() throws Exception {
+
 		List<User> result = userRepository.findByLastnameIgnoringCaseLike("BeAUfo%");
-		assertThat(result.size(), is(1));
-		assertThat(result.get(0), is(carter));
+
+		assertThat(result).containsExactly(carter);
 	}
 
 	@Test // DATAJPA-92
-	public void findByLastnameAndFirstnameAllIgnoringCase() throws Exception {
+	public void findByLastnameAndFirstnameAllIgnoringCase() {
+
 		List<User> result = userRepository.findByLastnameAndFirstnameAllIgnoringCase("MaTTheWs", "DaVe");
-		assertThat(result.size(), is(1));
-		assertThat(result.get(0), is(dave));
+
+		assertThat(result).containsExactly(dave);
 	}
 
 	@Test // DATAJPA-94
-	public void respectsPageableOrderOnQueryGenerateFromMethodName() throws Exception {
-		Page<User> ascending = userRepository.findByLastnameIgnoringCase(PageRequest.of(0, 10, Sort.by(ASC, "firstname")),
-				"Matthews");
-		Page<User> descending = userRepository.findByLastnameIgnoringCase(PageRequest.of(0, 10, Sort.by(DESC, "firstname")),
-				"Matthews");
-		assertThat(ascending.getTotalElements(), is(2L));
-		assertThat(descending.getTotalElements(), is(2L));
-		assertThat(ascending.getContent().get(0).getFirstname(),
-				is(not(equalTo(descending.getContent().get(0).getFirstname()))));
-		assertThat(ascending.getContent().get(0).getFirstname(),
-				is(equalTo(descending.getContent().get(1).getFirstname())));
-		assertThat(ascending.getContent().get(1).getFirstname(),
-				is(equalTo(descending.getContent().get(0).getFirstname())));
+	public void respectsPageableOrderOnQueryGenerateFromMethodName() {
+
+		Page<User> ascending = userRepository.findByLastnameIgnoringCase( //
+				PageRequest.of(0, 10, Sort.by(ASC, "firstname")), //
+				"Matthews" //
+		);
+		Page<User> descending = userRepository.findByLastnameIgnoringCase( //
+				PageRequest.of(0, 10, Sort.by(DESC, "firstname")), //
+				"Matthews" //
+		);
+
+		assertThat(ascending).containsExactly(dave, oliver);
+		assertThat(descending).containsExactly(oliver, dave);
 	}
 
 	@Test // DATAJPA-486
@@ -189,33 +191,84 @@ public class UserRepositoryFinderTests {
 
 		Slice<User> slice = userRepository.findSliceByLastname("Matthews", PageRequest.of(0, 1, ASC, "firstname"));
 
-		assertThat(slice.getContent(), hasItem(dave));
-		assertThat(slice.hasNext(), is(true));
+		assertThat(slice.getContent()).containsExactly(dave);
+		assertThat(slice.hasNext()).isTrue();
+	}
+
+	@Test // DATAJPA-1554
+	public void executesQueryToSliceWithUnpaged() {
+
+		Slice<User> slice = userRepository.findSliceByLastname("Matthews", Pageable.unpaged());
+
+		assertThat(slice).containsExactlyInAnyOrder(dave, oliver);
+		assertThat(slice.getNumberOfElements()).isEqualTo(2);
+		assertThat(slice.hasNext()).isEqualTo(false);
 	}
 
 	@Test // DATAJPA-830
 	public void executesMethodWithNotContainingOnStringCorrectly() {
-		assertThat(userRepository.findByLastnameNotContaining("u"), containsInAnyOrder(dave, oliver));
+
+		assertThat(userRepository.findByLastnameNotContaining("u")) //
+				.containsExactly(dave, oliver);
+	}
+
+	@Test // DATAJPA-1519
+	public void parametersForContainsGetProperlyEscaped() {
+
+		assertThat(userRepository.findByFirstnameContaining("liv%")) //
+				.isEmpty();
+	}
+
+	@Test // DATAJPA-1519
+	public void escapingInLikeSpels() {
+
+		User extra = new User("extra", "Matt_ew", "extra");
+
+		userRepository.save(extra);
+
+		assertThat(userRepository.findContainingEscaped("att_")).containsExactly(extra);
+	}
+
+	@Test // DATAJPA-1522
+	public void escapingInLikeSpelsInThePresenceOfEscapeCharacters() {
+
+		User withEscapeCharacter = userRepository.save(new User("extra", "Matt\\xew", "extra1"));
+		userRepository.save(new User("extra", "Matt\\_ew", "extra2"));
+
+		assertThat(userRepository.findContainingEscaped("att\\x")).containsExactly(withEscapeCharacter);
+	}
+
+	@Test // DATAJPA-1522
+	public void escapingInLikeSpelsInThePresenceOfEscapedWildcards() {
+
+		userRepository.save(new User("extra", "Matt\\xew", "extra1"));
+		User withEscapedWildcard = userRepository.save(new User("extra", "Matt\\_ew", "extra2"));
+
+		assertThat(userRepository.findContainingEscaped("att\\_")).containsExactly(withEscapedWildcard);
 	}
 
 	@Test // DATAJPA-829
 	public void translatesContainsToMemberOf() {
 
-		List<User> singers = userRepository.findByRolesContaining(singer);
+		assertThat(userRepository.findByRolesContaining(singer)) //
+				.containsExactlyInAnyOrder(dave, carter);
 
-		assertThat(singers, hasSize(2));
-		assertThat(singers, hasItems(dave, carter));
-		assertThat(userRepository.findByRolesContaining(drummer), contains(carter));
+		assertThat(userRepository.findByRolesContaining(drummer)) //
+				.containsExactly(carter);
 	}
 
 	@Test // DATAJPA-829
 	public void translatesNotContainsToNotMemberOf() {
-		assertThat(userRepository.findByRolesNotContaining(drummer), hasItems(dave, oliver));
+
+		assertThat(userRepository.findByRolesNotContaining(drummer)) //
+				.containsExactlyInAnyOrder(dave, oliver);
 	}
 
 	@Test // DATAJPA-974
 	public void executesQueryWithProjectionContainingReferenceToPluralAttribute() {
-		assertThat(userRepository.findRolesAndFirstnameBy(), is(notNullValue()));
+
+		assertThat(userRepository.findRolesAndFirstnameBy()) //
+				.isNotNull();
 	}
 
 	@Test(expected = InvalidDataAccessApiUsageException.class) // DATAJPA-1023, DATACMNS-959

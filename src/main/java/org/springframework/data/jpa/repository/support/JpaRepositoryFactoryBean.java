@@ -1,11 +1,11 @@
 /*
- * Copyright 2008-2018 the original author or authors.
+ * Copyright 2008-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,16 +18,15 @@ package org.springframework.data.jpa.repository.support;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.ListableBeanFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.query.EscapeCharacter;
 import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.data.querydsl.EntityPathResolver;
 import org.springframework.data.querydsl.SimpleEntityPathResolver;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 import org.springframework.data.repository.core.support.TransactionalRepositoryFactoryBeanSupport;
-import org.springframework.data.util.BeanLookup;
-import org.springframework.data.util.Lazy;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
@@ -45,7 +44,8 @@ public class JpaRepositoryFactoryBean<T extends Repository<S, ID>, S, ID>
 		extends TransactionalRepositoryFactoryBeanSupport<T, S, ID> {
 
 	private @Nullable EntityManager entityManager;
-	private Lazy<EntityPathResolver> entityPathResolver = Lazy.of(SimpleEntityPathResolver.INSTANCE);
+	private EntityPathResolver entityPathResolver;
+	private EscapeCharacter escapeCharacter = EscapeCharacter.DEFAULT;
 
 	/**
 	 * Creates a new {@link JpaRepositoryFactoryBean} for the given repository interface.
@@ -75,6 +75,17 @@ public class JpaRepositoryFactoryBean<T extends Repository<S, ID>, S, ID>
 		super.setMappingContext(mappingContext);
 	}
 
+	/**
+	 * Configures the {@link EntityPathResolver} to be used. Will expect a canonical bean to be present but fallback to
+	 * {@link SimpleEntityPathResolver#INSTANCE} in case none is available.
+	 *
+	 * @param resolver must not be {@literal null}.
+	 */
+	@Autowired
+	public void setEntityPathResolver(ObjectProvider<EntityPathResolver> resolver) {
+		this.entityPathResolver = resolver.getIfAvailable(() -> SimpleEntityPathResolver.INSTANCE);
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.data.repository.core.support.TransactionalRepositoryFactoryBeanSupport#doCreateRepositoryFactory()
@@ -92,11 +103,9 @@ public class JpaRepositoryFactoryBean<T extends Repository<S, ID>, S, ID>
 	 */
 	protected RepositoryFactorySupport createRepositoryFactory(EntityManager entityManager) {
 
-		EntityPathResolver resolver = entityPathResolver.get();
-
 		JpaRepositoryFactory jpaRepositoryFactory = new JpaRepositoryFactory(entityManager);
-		jpaRepositoryFactory.setEntityPathResolver(resolver);
-
+		jpaRepositoryFactory.setEntityPathResolver(entityPathResolver);
+		jpaRepositoryFactory.setEscapeCharacter(escapeCharacter);
 		return jpaRepositoryFactory;
 	}
 
@@ -112,17 +121,8 @@ public class JpaRepositoryFactoryBean<T extends Repository<S, ID>, S, ID>
 		super.afterPropertiesSet();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see org.springframework.data.repository.core.support.TransactionalRepositoryFactoryBeanSupport#setBeanFactory(org.springframework.beans.factory.BeanFactory)
-	 */
-	public void setBeanFactory(BeanFactory beanFactory) {
+	public void setEscapeCharacter(char escapeCharacter) {
 
-		Assert.isInstanceOf(ListableBeanFactory.class, beanFactory);
-
-		super.setBeanFactory(beanFactory);
-
-		this.entityPathResolver = BeanLookup.lazyIfAvailable(EntityPathResolver.class, beanFactory) //
-				.or(SimpleEntityPathResolver.INSTANCE);
+		this.escapeCharacter = EscapeCharacter.of(escapeCharacter);
 	}
 }

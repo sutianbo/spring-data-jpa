@@ -1,11 +1,11 @@
 /*
- * Copyright 2008-2018 the original author or authors.
+ * Copyright 2008-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,6 @@ package org.springframework.data.jpa.provider;
 import static org.springframework.data.jpa.provider.JpaClassUtils.*;
 import static org.springframework.data.jpa.provider.PersistenceProvider.Constants.*;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.NoSuchElementException;
@@ -44,6 +43,7 @@ import org.springframework.util.ConcurrentReferenceHashMap;
  * @author Oliver Gierke
  * @author Thomas Darimont
  * @author Mark Paluch
+ * @author Jens Schauder
  */
 public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 
@@ -56,9 +56,10 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 	 * @see <a href="https://jira.spring.io/browse/DATAJPA-444">DATAJPA-444</a>
 	 */
 	HIBERNATE(//
-			Arrays.asList(HIBERNATE_ENTITY_MANAGER_INTERFACE), //
-			Arrays.asList(HIBERNATE_JPA_METAMODEL_TYPE)) {
+			Collections.singletonList(HIBERNATE_ENTITY_MANAGER_INTERFACE), //
+			Collections.singletonList(HIBERNATE_JPA_METAMODEL_TYPE)) {
 
+		@Override
 		public String extractQueryString(Query query) {
 			return HibernateUtils.getHibernateQuery(query);
 		}
@@ -116,8 +117,10 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 	/**
 	 * EclipseLink persistence provider.
 	 */
-	ECLIPSELINK(Collections.singleton(ECLIPSELINK_ENTITY_MANAGER_INTERFACE), Collections.singleton(ECLIPSELINK_JPA_METAMODEL_TYPE)) {
+	ECLIPSELINK(Collections.singleton(ECLIPSELINK_ENTITY_MANAGER_INTERFACE),
+			Collections.singleton(ECLIPSELINK_JPA_METAMODEL_TYPE)) {
 
+		@Override
 		public String extractQueryString(Query query) {
 			return ((JpaQuery<?>) query).getDatabaseQuery().getJPQLString();
 		}
@@ -157,14 +160,14 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 		 */
 		@Override
 		public CloseableIterator<Object> executeQueryWithResultStream(Query jpaQuery) {
-			return new EclipseLinkScrollableResultsIterator<Object>(jpaQuery);
+			return new EclipseLinkScrollableResultsIterator<>(jpaQuery);
 		}
 	},
 
 	/**
 	 * Unknown special provider. Use standard JPA.
 	 */
-	GENERIC_JPA(Collections.singleton(GENERIC_JPA_ENTITY_MANAGER_INTERFACE), Collections.<String> emptySet()) {
+	GENERIC_JPA(Collections.singleton(GENERIC_JPA_ENTITY_MANAGER_INTERFACE), Collections.emptySet()) {
 
 		/*
 		 * (non-Javadoc)
@@ -205,29 +208,7 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 		}
 	};
 
-	/**
-	 * Holds the PersistenceProvider specific interface names.
-	 *
-	 * @author Thomas Darimont
-	 */
-	static interface Constants {
-
-		String GENERIC_JPA_ENTITY_MANAGER_INTERFACE = "javax.persistence.EntityManager";
-		String OPENJPA_ENTITY_MANAGER_INTERFACE = "org.apache.openjpa.persistence.OpenJPAEntityManager";
-		String ECLIPSELINK_ENTITY_MANAGER_INTERFACE = "org.eclipse.persistence.jpa.JpaEntityManager";
-		String HIBERNATE_SESSION_INTERFACE = "org.hibernate.Session";
-		// needed as Spring only exposes that interface via the EM proxy
-		String HIBERNATE_ENTITY_MANAGER_INTERFACE = "org.hibernate.jpa.HibernateEntityManager";
-
-		String HIBERNATE_JPA_METAMODEL_TYPE = "org.hibernate.metamodel.internal.MetamodelImpl";
-		String ECLIPSELINK_JPA_METAMODEL_TYPE = "org.eclipse.persistence.internal.jpa.metamodel.MetamodelImpl";
-		String OPENJPA_JPA_METAMODEL_TYPE = "org.apache.openjpa.persistence.meta.MetamodelImpl";
-	}
-
-	private static ConcurrentReferenceHashMap<Class<?>, PersistenceProvider> CACHE = new ConcurrentReferenceHashMap<Class<?>, PersistenceProvider>();
-
-	private final Iterable<String> entityManagerClassNames;
-	private final Iterable<String> metamodelClassNames;
+	static ConcurrentReferenceHashMap<Class<?>, PersistenceProvider> CACHE = new ConcurrentReferenceHashMap<>();
 
 	/**
 	 * Creates a new {@link PersistenceProvider}.
@@ -236,10 +217,25 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 	 *          be {@literal null} or empty.
 	 * @param metamodelClassNames must not be {@literal null}.
 	 */
-	private PersistenceProvider(Iterable<String> entityManagerClassNames, Iterable<String> metamodelClassNames) {
+	PersistenceProvider(Iterable<String> entityManagerClassNames, Iterable<String> metamodelClassNames) {
 
 		this.entityManagerClassNames = entityManagerClassNames;
 		this.metamodelClassNames = metamodelClassNames;
+	}
+
+	private final Iterable<String> entityManagerClassNames;
+	private final Iterable<String> metamodelClassNames;
+
+	/**
+	 * Caches the given {@link PersistenceProvider} for the given source type.
+	 *
+	 * @param type must not be {@literal null}.
+	 * @param provider must not be {@literal null}.
+	 * @return the {@code PersistenceProvider} passed in as an argument. Guaranteed to be not {@code null}.
+	 */
+	private static PersistenceProvider cacheAndReturn(Class<?> type, PersistenceProvider provider) {
+		CACHE.put(type, provider);
+		return provider;
 	}
 
 	/**
@@ -301,32 +297,21 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 	}
 
 	/**
-	 * Caches the given {@link PersistenceProvider} for the given source type.
+	 * Returns the placeholder to be used for simple count queries. Default implementation returns {@code x}.
 	 *
-	 * @param type must not be {@literal null}.
-	 * @param provider must not be {@literal null}.
-	 * @return
+	 * @return a placeholder for count queries. Guaranteed to be not {@code null}.
 	 */
-	private static PersistenceProvider cacheAndReturn(Class<?> type, PersistenceProvider provider) {
-		CACHE.put(type, provider);
-		return provider;
+	public String getCountQueryPlaceholder() {
+		return "x";
 	}
 
 	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.data.jpa.repository.query.QueryExtractor#canExtractQuery()
 	 */
+	@Override
 	public boolean canExtractQuery() {
 		return true;
-	}
-
-	/**
-	 * Returns the placeholder to be used for simple count queries. Default implementation returns {@code *}.
-	 *
-	 * @return
-	 */
-	public String getCountQueryPlaceholder() {
-		return "x";
 	}
 
 	/**
@@ -334,12 +319,29 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 	 * since some JPA providers cannot correctly handle empty collections.
 	 *
 	 * @see <a href="https://jira.spring.io/browse/DATAJPA-606">DATAJPA-606</a>
-	 * @param collection
-	 * @return
+	 * @param collection The collection to be converted. May be {@code null}.
+	 * @return a potentially converted collection. May be {@code null}.
 	 */
 	@Nullable
 	public <T> Collection<T> potentiallyConvertEmptyCollection(@Nullable Collection<T> collection) {
 		return collection;
+	}
+
+	/**
+	 * Holds the PersistenceProvider specific interface names.
+	 *
+	 * @author Thomas Darimont
+	 * @author Jens Schauder
+	 */
+	interface Constants {
+
+		String GENERIC_JPA_ENTITY_MANAGER_INTERFACE = "javax.persistence.EntityManager";
+		String ECLIPSELINK_ENTITY_MANAGER_INTERFACE = "org.eclipse.persistence.jpa.JpaEntityManager";
+		// needed as Spring only exposes that interface via the EM proxy
+		String HIBERNATE_ENTITY_MANAGER_INTERFACE = "org.hibernate.jpa.HibernateEntityManager";
+
+		String HIBERNATE_JPA_METAMODEL_TYPE = "org.hibernate.metamodel.internal.MetamodelImpl";
+		String ECLIPSELINK_JPA_METAMODEL_TYPE = "org.eclipse.persistence.internal.jpa.metamodel.MetamodelImpl";
 	}
 
 	public CloseableIterator<Object> executeQueryWithResultStream(Query jpaQuery) {
@@ -352,7 +354,6 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 	 *
 	 * @author Thomas Darimont
 	 * @author Oliver Gierke
-	 * @param <T> the domain type to return≠
 	 * @since 1.8
 	 */
 	private static class HibernateScrollableResultsIterator implements CloseableIterator<Object> {
@@ -364,7 +365,7 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 		 *
 		 * @param jpaQuery must not be {@literal null}.
 		 */
-		public HibernateScrollableResultsIterator(Query jpaQuery) {
+		HibernateScrollableResultsIterator(Query jpaQuery) {
 
 			org.hibernate.query.Query<?> query = jpaQuery.unwrap(org.hibernate.query.Query.class);
 			this.scrollableResults = query.setReadOnly(TransactionSynchronizationManager.isCurrentTransactionReadOnly())//
@@ -382,7 +383,8 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 				throw new NoSuchElementException("No ScrollableResults");
 			}
 
-			Object[] row = scrollableResults.get();
+			// Cast needed for Hibernate 6 compatibility
+			Object[] row = (Object[]) scrollableResults.get();
 
 			return row.length == 1 ? row[0] : row;
 		}
@@ -427,7 +429,7 @@ public enum PersistenceProvider implements QueryExtractor, ProxyIdAccessor {
 		 *
 		 * @param jpaQuery must not be {@literal null}.
 		 */
-		public EclipseLinkScrollableResultsIterator(Query jpaQuery) {
+		EclipseLinkScrollableResultsIterator(Query jpaQuery) {
 
 			jpaQuery.setHint("eclipselink.cursor.scrollable", true);
 

@@ -1,11 +1,11 @@
 /*
- * Copyright 2013-2018 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,12 +22,15 @@ import static org.mockito.Mockito.*;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import javax.persistence.Entity;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
 import javax.persistence.Persistence;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -80,8 +83,50 @@ public class QueryUtilsIntegrationTests {
 		assertThat(from.getJoins()).hasSize(1);
 	}
 
-	@Test // DATAJPA-401
-	public void createsJoinForOptionalAssociation() {
+	@Test // DATAJPA-401, DATAJPA-1238
+	public void createsJoinForNavigationAcrossOptionalAssociation() {
+
+		CriteriaBuilder builder = em.getCriteriaBuilder();
+		CriteriaQuery<User> query = builder.createQuery(User.class);
+		Root<User> root = query.from(User.class);
+
+		QueryUtils.toExpressionRecursively(root, PropertyPath.from("manager.firstname", User.class));
+
+		assertThat(getNonInnerJoins(root)).hasSize(1);
+	}
+
+	@Test // DATAJPA-1404
+	public void createsJoinForOptionalOneToOneInReverseDirection() {
+
+		doInMerchantContext(emf -> {
+
+			CriteriaBuilder builder = emf.getCriteriaBuilder();
+			CriteriaQuery<Address> query = builder.createQuery(Address.class);
+			Root<Address> root = query.from(Address.class);
+
+			QueryUtils.toExpressionRecursively(root, PropertyPath.from("merchant", Address.class));
+
+			assertThat(getNonInnerJoins(root)).hasSize(1);
+		});
+	}
+
+	@Test // DATAJPA-1404
+	public void createsNoJoinForOptionalOneToOneInNormalDirection() {
+
+		doInMerchantContext(emf -> {
+
+			CriteriaBuilder builder = emf.getCriteriaBuilder();
+			CriteriaQuery<Merchant> query = builder.createQuery(Merchant.class);
+			Root<Merchant> root = query.from(Merchant.class);
+
+			QueryUtils.toExpressionRecursively(root, PropertyPath.from("address", Merchant.class));
+
+			assertThat(getNonInnerJoins(root)).isEmpty();
+		});
+	}
+
+	@Test // DATAJPA-401, DATAJPA-1238
+	public void doesNotCreateJoinForOptionalAssociationWithoutFurtherNavigation() {
 
 		CriteriaBuilder builder = em.getCriteriaBuilder();
 		CriteriaQuery<User> query = builder.createQuery(User.class);
@@ -89,7 +134,7 @@ public class QueryUtilsIntegrationTests {
 
 		QueryUtils.toExpressionRecursively(root, PropertyPath.from("manager", User.class));
 
-		assertThat(root.getJoins()).hasSize(1);
+		assertThat(getNonInnerJoins(root)).hasSize(0);
 	}
 
 	@Test // DATAJPA-401
@@ -117,21 +162,31 @@ public class QueryUtilsIntegrationTests {
 	@Test // DATAJPA-476
 	public void traversesPluralAttributeCorrectly() {
 
-		PersistenceProviderResolver originalPersistenceProviderResolver = PersistenceProviderResolverHolder
-				.getPersistenceProviderResolver();
+		doInMerchantContext((emf) -> {
 
-		try {
-
-			PersistenceProviderResolverHolder.setPersistenceProviderResolver(new HibernateOnlyPersistenceProviderResolver());
-			EntityManagerFactory entityManagerFactory = Persistence.createEntityManagerFactory("merchant");
-			CriteriaBuilder builder = entityManagerFactory.createEntityManager().getCriteriaBuilder();
+			CriteriaBuilder builder = emf.createEntityManager().getCriteriaBuilder();
 			CriteriaQuery<Merchant> query = builder.createQuery(Merchant.class);
 			Root<Merchant> root = query.from(Merchant.class);
 
 			QueryUtils.toExpressionRecursively(root, PropertyPath.from("employeesCredentialsUid", Merchant.class));
+		});
+	}
 
+	public void doInMerchantContext(Consumer<EntityManagerFactory> emfConsumer) {
+		PersistenceProviderResolver originalPersistenceProviderResolver = PersistenceProviderResolverHolder
+				.getPersistenceProviderResolver();
+
+		EntityManagerFactory entityManagerFactory = null;
+		try {
+
+			PersistenceProviderResolverHolder.setPersistenceProviderResolver(new HibernateOnlyPersistenceProviderResolver());
+			entityManagerFactory = Persistence.createEntityManagerFactory("merchant");
+			emfConsumer.accept(entityManagerFactory);
 		} finally {
 			PersistenceProviderResolverHolder.setPersistenceProviderResolver(originalPersistenceProviderResolver);
+			if (entityManagerFactory != null) {
+				entityManagerFactory.close();
+			}
 		}
 	}
 
@@ -162,11 +217,40 @@ public class QueryUtilsIntegrationTests {
 		Root<User> root = query.from(User.class);
 		Join<User, User> join = root.join("manager", JoinType.LEFT);
 
-		Sort sort = new Sort(Direction.ASC, "age");
+		Sort sort = Sort.by(Direction.ASC, "age");
 
 		List<javax.persistence.criteria.Order> orders = QueryUtils.toOrders(sort, join, builder);
 
 		assertThat(orders).hasSize(1);
+	}
+
+	/**
+	 * This test documents an ambiguity in the JPA spec (or it's implementation in Hibernate vs EclipseLink) that we have
+	 * to work around in the test {@link #doesNotCreateJoinForOptionalAssociationWithoutFurtherNavigation()}. See also:
+	 * https://github.com/javaee/jpa-spec/issues/169 Compare to: {@link EclipseLinkQueryUtilsIntegrationTests}
+	 */
+	@Test // DATAJPA-1238
+	public void demonstrateDifferentBehavorOfGetJoin() {
+
+		CriteriaBuilder builder = em.getCriteriaBuilder();
+		CriteriaQuery<User> query = builder.createQuery(User.class);
+		Root<User> root = query.from(User.class);
+
+		root.get("manager");
+
+		assertThat(root.getJoins()).hasSize(getNumberOfJoinsAfterCreatingAPath());
+	}
+
+	int getNumberOfJoinsAfterCreatingAPath() {
+		return 0;
+	}
+
+	private Set<Join<?, ?>> getNonInnerJoins(Root<?> root) {
+
+		return root.getJoins() //
+				.stream() //
+				.filter(j -> j.getJoinType() != JoinType.INNER) //
+				.collect(Collectors.toSet());
 	}
 
 	@Entity
@@ -175,6 +259,15 @@ public class QueryUtilsIntegrationTests {
 
 		@Id String id;
 		@OneToMany Set<Employee> employees;
+
+		@OneToOne Address address;
+	}
+
+	@Entity
+	@SuppressWarnings("unused")
+	static class Address {
+		@Id String id;
+		@OneToOne(mappedBy = "address") Merchant merchant;
 	}
 
 	@Entity
@@ -209,4 +302,5 @@ public class QueryUtilsIntegrationTests {
 		@Override
 		public void clearCachedProviders() {}
 	}
+
 }

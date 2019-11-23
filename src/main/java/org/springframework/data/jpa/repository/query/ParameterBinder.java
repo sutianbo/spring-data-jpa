@@ -1,11 +1,11 @@
 /*
- * Copyright 2008-2018 the original author or authors.
+ * Copyright 2008-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,6 @@ package org.springframework.data.jpa.repository.query;
 import javax.persistence.Query;
 
 import org.springframework.data.jpa.repository.query.QueryParameterSetter.ErrorHandling;
-import org.springframework.data.repository.query.ParametersParameterAccessor;
 import org.springframework.util.Assert;
 
 /**
@@ -70,15 +69,18 @@ public class ParameterBinder {
 		this.useJpaForPaging = useJpaForPaging;
 	}
 
-	public <T extends Query> T bind(T jpaQuery, Object[] values) {
-		return bind(jpaQuery, values, ErrorHandling.STRICT);
+	public <T extends Query> T bind(T jpaQuery, QueryParameterSetter.QueryMetadata metadata,
+			JpaParametersParameterAccessor accessor) {
+		bind(metadata.withQuery(jpaQuery), accessor, ErrorHandling.STRICT);
+		return jpaQuery;
 	}
 
-	public <T extends Query> T bind(T jpaQuery, Object[] values, ErrorHandling errorHandling) {
+	public void bind(QueryParameterSetter.BindableQuery query, JpaParametersParameterAccessor accessor,
+			ErrorHandling errorHandling) {
 
-		parameterSetters.forEach(it -> it.setParameter(jpaQuery, values, errorHandling));
-
-		return jpaQuery;
+		for (QueryParameterSetter setter : parameterSetters) {
+			setter.setParameter(query, accessor, errorHandling);
+		}
 	}
 
 	/**
@@ -87,21 +89,18 @@ public class ParameterBinder {
 	 * @param query must not be {@literal null}.
 	 * @param values values of method parameters to be assigned to the query parameters.
 	 */
-	Query bindAndPrepare(Query query, Object[] values) {
+	Query bindAndPrepare(Query query, QueryParameterSetter.QueryMetadata metadata,
+			JpaParametersParameterAccessor accessor) {
 
-		Assert.notNull(query, "Query must not be null!");
-
-		ParametersParameterAccessor accessor = new ParametersParameterAccessor(parameters, values);
-
-		Query result = bind(query, values);
+		bind(query, metadata, accessor);
 
 		if (!useJpaForPaging || !parameters.hasPageableParameter() || accessor.getPageable().isUnpaged()) {
-			return result;
+			return query;
 		}
 
-		result.setFirstResult((int) accessor.getPageable().getOffset());
-		result.setMaxResults(accessor.getPageable().getPageSize());
+		query.setFirstResult((int) accessor.getPageable().getOffset());
+		query.setMaxResults(accessor.getPageable().getPageSize());
 
-		return result;
+		return query;
 	}
 }

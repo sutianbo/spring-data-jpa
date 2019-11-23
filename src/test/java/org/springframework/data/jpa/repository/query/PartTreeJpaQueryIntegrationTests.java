@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2018 the original author or authors.
+ * Copyright 2011-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License
 import org.springframework.aop.framework.Advised;
@@ -7,7 +7,7 @@ import org.springframework.aop.framework.Advised;
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,6 +22,7 @@ import static org.springframework.test.util.ReflectionTestUtils.*;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -83,8 +84,8 @@ public class PartTreeJpaQueryIntegrationTests {
 		JpaQueryMethod queryMethod = getQueryMethod("findByFirstname", String.class, Pageable.class);
 		PartTreeJpaQuery jpaQuery = new PartTreeJpaQuery(queryMethod, entityManager, provider);
 
-		jpaQuery.createQuery(new Object[] { "Matthews", PageRequest.of(0, 1) });
-		jpaQuery.createQuery(new Object[] { "Matthews", PageRequest.of(0, 1) });
+		jpaQuery.createQuery(getAccessor(queryMethod, new Object[] { "Matthews", PageRequest.of(0, 1) }));
+		jpaQuery.createQuery((getAccessor(queryMethod, new Object[] { "Matthews", PageRequest.of(0, 1) })));
 	}
 
 	@Test
@@ -107,11 +108,11 @@ public class PartTreeJpaQueryIntegrationTests {
 		JpaQueryMethod queryMethod = getQueryMethod("findByFirstname", String.class, Pageable.class);
 		PartTreeJpaQuery jpaQuery = new PartTreeJpaQuery(queryMethod, entityManager, provider);
 
-		Query query = jpaQuery.createQuery(new Object[] { "Matthews", PageRequest.of(0, 1) });
+		Query query = jpaQuery.createQuery((getAccessor(queryMethod, new Object[] { "Matthews", PageRequest.of(0, 1) })));
 
 		assertThat(HibernateUtils.getHibernateQuery(getValue(query, PROPERTY))).endsWith("firstname=:param0");
 
-		query = jpaQuery.createQuery(new Object[] { null, PageRequest.of(0, 1) });
+		query = jpaQuery.createQuery((getAccessor(queryMethod, new Object[] { null, PageRequest.of(0, 1) })));
 
 		assertThat(HibernateUtils.getHibernateQuery(getValue(query, PROPERTY))).endsWith("firstname is null");
 	}
@@ -122,7 +123,7 @@ public class PartTreeJpaQueryIntegrationTests {
 		JpaQueryMethod queryMethod = getQueryMethod("existsByFirstname", String.class);
 		PartTreeJpaQuery jpaQuery = new PartTreeJpaQuery(queryMethod, entityManager, provider);
 
-		Query query = jpaQuery.createQuery(new Object[] { "Matthews" });
+		Query query = jpaQuery.createQuery((getAccessor(queryMethod, new Object[] { "Matthews" })));
 
 		assertThat(query.getMaxResults()).isEqualTo(1);
 	}
@@ -133,7 +134,7 @@ public class PartTreeJpaQueryIntegrationTests {
 		JpaQueryMethod queryMethod = getQueryMethod("existsByFirstname", String.class);
 		PartTreeJpaQuery jpaQuery = new PartTreeJpaQuery(queryMethod, entityManager, provider);
 
-		Query query = jpaQuery.createQuery(new Object[] { "Matthews" });
+		Query query = jpaQuery.createQuery((getAccessor(queryMethod, new Object[] { "Matthews" })));
 
 		assertThat(HibernateUtils.getHibernateQuery(getValue(query, PROPERTY))).contains(".id from User as");
 	}
@@ -144,7 +145,7 @@ public class PartTreeJpaQueryIntegrationTests {
 		JpaQueryMethod queryMethod = getQueryMethod("findByRolesIsEmpty");
 		PartTreeJpaQuery jpaQuery = new PartTreeJpaQuery(queryMethod, entityManager, provider);
 
-		Query query = jpaQuery.createQuery(new Object[] {});
+		Query query = jpaQuery.createQuery((getAccessor(queryMethod, new Object[] {})));
 
 		assertThat(HibernateUtils.getHibernateQuery(getValue(query, PROPERTY))).endsWith("roles is empty");
 	}
@@ -155,7 +156,7 @@ public class PartTreeJpaQueryIntegrationTests {
 		JpaQueryMethod queryMethod = getQueryMethod("findByRolesIsNotEmpty");
 		PartTreeJpaQuery jpaQuery = new PartTreeJpaQuery(queryMethod, entityManager, provider);
 
-		Query query = jpaQuery.createQuery(new Object[] {});
+		Query query = jpaQuery.createQuery((getAccessor(queryMethod, new Object[] {})));
 
 		assertThat(HibernateUtils.getHibernateQuery(getValue(query, PROPERTY))).endsWith("roles is not empty");
 	}
@@ -166,11 +167,47 @@ public class PartTreeJpaQueryIntegrationTests {
 		JpaQueryMethod method = getQueryMethod("findByFirstnameIsEmpty");
 		AbstractJpaQuery jpaQuery = new PartTreeJpaQuery(method, entityManager, provider);
 
-		jpaQuery.createQuery(new Object[] { "Oliver" });
+		jpaQuery.createQuery((getAccessor(method, new Object[] { "Oliver" })));
+	}
+
+	@Test // DATAJPA-1182
+	public void rejectsInPredicateWithNonIterableParameter() throws Exception {
+
+		JpaQueryMethod method = getQueryMethod("findByIdIn", Long.class);
+
+		assertThatExceptionOfType(RuntimeException.class) //
+				.isThrownBy(() -> new PartTreeJpaQuery(method, entityManager, provider)) //
+				.withMessageContaining("findByIdIn") //
+				.withMessageContaining(" IN ") //
+				.withMessageContaining("Collection") //
+				.withMessageContaining("Long");
+	}
+
+	@Test // DATAJPA-1182
+	public void rejectsOtherThanInPredicateWithIterableParameter() throws Exception {
+
+		JpaQueryMethod method = getQueryMethod("findById", Collection.class);
+
+		assertThatExceptionOfType(RuntimeException.class) //
+				.isThrownBy(() -> new PartTreeJpaQuery(method, entityManager, provider)) //
+				.withMessageContaining("findById") //
+				.withMessageContaining(" SIMPLE_PROPERTY ") //
+				.withMessageContaining(" scalar ") //
+				.withMessageContaining("Collection");
+	}
+
+	@Test // DATAJPA-1619
+	public void acceptsInPredicateWithIterableParameter() throws Exception {
+
+		JpaQueryMethod method = getQueryMethod("findByFirstnameIn", Iterable.class);
+
+		new PartTreeJpaQuery(method, entityManager, provider);
+
+		assertThat(method).isNotNull();
 	}
 
 	@Test // DATAJPA-863
-	public void errorsDueToMismatchOfParametersContainNameOfMethodAndInterface() throws Exception {
+	public void errorsDueToMismatchOfParametersContainNameOfMethodInterfaceAndPropertyPath() throws Exception {
 
 		JpaQueryMethod method = getQueryMethod("findByFirstname");
 
@@ -204,10 +241,11 @@ public class PartTreeJpaQueryIntegrationTests {
 		JpaQueryMethod queryMethod = getQueryMethod(methodName, parameterTypes);
 		PartTreeJpaQuery jpaQuery = new PartTreeJpaQuery(queryMethod, entityManager,
 				PersistenceProvider.fromEntityManager(entityManager));
-		jpaQuery.createQuery(values);
+		jpaQuery.createQuery((getAccessor(queryMethod, values)));
 	}
 
 	private JpaQueryMethod getQueryMethod(String methodName, Class<?>... parameterTypes) throws Exception {
+
 		Method method = UserRepository.class.getMethod(methodName, parameterTypes);
 		return new JpaQueryMethod(method, new DefaultRepositoryMetadata(UserRepository.class),
 				new SpelAwareProxyProjectionFactory(), PersistenceProvider.fromEntityManager(entityManager));
@@ -221,12 +259,16 @@ public class PartTreeJpaQueryIntegrationTests {
 
 		while (split.hasNext()) {
 
-			Assert.notNull(source, "result must not be null.");
+			Assert.notNull(result, "result must not be null.");
 			result = getField(result, split.next());
 		}
 
 		Assert.notNull(result, "result must not be null.");
 		return (T) result;
+	}
+
+	private JpaParametersParameterAccessor getAccessor(JpaQueryMethod queryMethod, Object[] values) {
+		return new JpaParametersParameterAccessor(queryMethod.getParameters(), values);
 	}
 
 	private static String getQueryProperty() {
@@ -259,6 +301,15 @@ public class PartTreeJpaQueryIntegrationTests {
 		List<User> findByRolesIsNotEmpty();
 
 		List<User> findByFirstnameIsEmpty();
+
+		// should fail, since we can't compare scalar values to collections
+		List<User> findById(Collection<Long> ids);
+
+		// should fail, since we can't do an IN on a scalar
+		List<User> findByIdIn(Long id);
+
+		// should succeed
+		List<User> findByFirstnameIn(Iterable<String> id);
 
 		// Wrong number of parameters
 		User findByFirstname();

@@ -1,11 +1,11 @@
 /*
- * Copyright 2013-2018 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,6 +34,7 @@ import org.springframework.util.Assert;
  *
  * @author Thomas Darimont
  * @author Oliver Gierke
+ * @author Tom Hombergs
  */
 class ExpressionBasedStringQuery extends StringQuery {
 
@@ -57,6 +58,19 @@ class ExpressionBasedStringQuery extends StringQuery {
 	 */
 	public ExpressionBasedStringQuery(String query, JpaEntityMetadata<?> metadata, SpelExpressionParser parser) {
 		super(renderQueryIfExpressionOrReturnQuery(query, metadata, parser));
+	}
+
+	/**
+	 * Creates an {@link ExpressionBasedStringQuery} from a given {@link DeclaredQuery}.
+	 * 
+	 * @param query the original query. Must not be {@literal null}.
+	 * @param metadata the {@link JpaEntityMetadata} for the given entity. Must not be {@literal null}.
+	 * @param parser Parser for resolving SpEL expressions. Must not be {@literal null}.
+	 * @return A query supporting SpEL expressions.
+	 */
+	static ExpressionBasedStringQuery from(DeclaredQuery query, JpaEntityMetadata metadata,
+			SpelExpressionParser parser) {
+		return new ExpressionBasedStringQuery(query.getQueryString(), metadata, parser);
 	}
 
 	/**

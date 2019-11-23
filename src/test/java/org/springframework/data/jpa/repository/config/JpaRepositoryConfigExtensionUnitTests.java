@@ -1,11 +1,11 @@
 /*
- * Copyright 2013-2018 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,17 +15,13 @@
  */
 package org.springframework.data.jpa.repository.config;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Set;
 
 import javax.persistence.EntityManagerFactory;
-import javax.persistence.metamodel.ManagedType;
 import javax.persistence.metamodel.Metamodel;
 
 import org.junit.Rule;
@@ -51,13 +47,13 @@ import org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcesso
  *
  * @author Oliver Gierke
  * @author Mark Paluch
+ * @author Jens Schauder
  */
 @RunWith(MockitoJUnitRunner.class)
 public class JpaRepositoryConfigExtensionUnitTests {
 
-	@Mock RepositoryConfigurationSource configSource;
-
 	public @Rule ExpectedException exception = ExpectedException.none();
+	@Mock RepositoryConfigurationSource configSource;
 
 	@Test
 	public void registersDefaultBeanPostProcessorsByDefault() {
@@ -69,7 +65,7 @@ public class JpaRepositoryConfigExtensionUnitTests {
 
 		Iterable<String> names = Arrays.asList(factory.getBeanDefinitionNames());
 
-		assertThat(names, hasItems(AnnotationConfigUtils.PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME));
+		assertThat(names).contains(AnnotationConfigUtils.PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME);
 	}
 
 	@Test
@@ -100,13 +96,9 @@ public class JpaRepositoryConfigExtensionUnitTests {
 		ApplicationContext context = mock(ApplicationContext.class);
 		EntityManagerFactory emf = mock(EntityManagerFactory.class);
 		Metamodel metamodel = mock(Metamodel.class);
-		ManagedType<?> managedType = mock(ManagedType.class);
-
-		Set<ManagedType<?>> managedTypes = Collections.<ManagedType<?>> singleton(managedType);
 
 		when(context.getBeansOfType(EntityManagerFactory.class)).thenReturn(Collections.singletonMap("emf", emf));
 		when(emf.getMetamodel()).thenReturn(metamodel);
-		when(metamodel.getManagedTypes()).thenReturn(managedTypes);
 
 		JpaMetamodelMappingContextFactoryBean factoryBean = new JpaMetamodelMappingContextFactoryBean();
 		factoryBean.setApplicationContext(context);
@@ -154,7 +146,7 @@ public class JpaRepositoryConfigExtensionUnitTests {
 		RepositoryConfigurationExtension extension = new JpaRepositoryConfigExtension();
 		extension.registerBeansForRoot(factory, configSource);
 
-		assertThat(factory.getBean(expectedBeanName), is(notNullValue()));
+		assertThat(factory.getBean(expectedBeanName)).isNotNull();
 		exception.expect(NoSuchBeanDefinitionException.class);
 		factory.getBeanDefinition("org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor#1");
 	}

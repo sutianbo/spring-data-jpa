@@ -1,6 +1,433 @@
 Spring Data JPA Changelog
 =========================
 
+Changes in version 2.2.2.RELEASE (2019-11-18)
+---------------------------------------------
+* DATAJPA-1632 - Fix documentation for countQuery.
+* DATAJPA-1623 - Release 2.2.2 (Moore SR2).
+* DATAJPA-1619 - Allow repository method parameters of type Iterable for derived IN-queries.
+
+
+Changes in version 2.1.13.RELEASE (2019-11-18)
+----------------------------------------------
+* DATAJPA-1632 - Fix documentation for countQuery.
+* DATAJPA-1621 - Release 2.1.13 (Lovelace SR13).
+
+
+Changes in version 2.2.1.RELEASE (2019-11-04)
+---------------------------------------------
+* DATAJPA-1620 - Update versions of Hibernate and Eclipselink.
+* DATAJPA-1618 - Fix repository for EclipseLink.
+* DATAJPA-1617 - Fix quotation marks in documentation.
+* DATAJPA-1606 - Release 2.2.1 (Moore SR1).
+
+
+Changes in version 2.1.12.RELEASE (2019-11-04)
+----------------------------------------------
+* DATAJPA-1620 - Update versions of Hibernate and Eclipselink.
+* DATAJPA-1618 - Fix repository for EclipseLink.
+* DATAJPA-1617 - Fix quotation marks in documentation.
+* DATAJPA-1605 - Release 2.1.12 (Lovelace SR12).
+
+
+Changes in version 2.2.0.RELEASE (2019-09-30)
+---------------------------------------------
+* DATAJPA-1604 - Move off deprecated QPageRequest constructors.
+* DATAJPA-1583 - Release 2.2 GA (Moore).
+
+
+Changes in version 2.1.11.RELEASE (2019-09-30)
+----------------------------------------------
+* DATAJPA-1600 - Document recommended way to work with entities with manually assigned identifiers.
+* DATAJPA-1594 - Tighten nullability constraints in Querydsl implementation.
+* DATAJPA-1582 - Local schema resolution fails for spring-repository.xsd.
+* DATAJPA-1581 - Release 2.1.11 (Lovelace SR11).
+
+
+Changes in version 2.2.0.RC3 (2019-09-06)
+-----------------------------------------
+* DATAJPA-1600 - Document recommended way to work with entities with manually assigned identifiers.
+* DATAJPA-1594 - Tighten nullability constraints in Querydsl implementation.
+* DATAJPA-1584 - Release 2.2 RC3 (Moore).
+* DATAJPA-1582 - Local schema resolution fails for spring-repository.xsd.
+
+
+Changes in version 2.2.0.RC2 (2019-08-05)
+-----------------------------------------
+* DATAJPA-1580 - Adapt EntityManagerBeanDefinitionRegistrarPostProcessor to latest changes in Spring Framework 5.2.
+* DATAJPA-1579 - Support multiple out parameters with nullable output data ad hoc stored procedure.
+* DATAJPA-1575 - Performance improvements in repository invocation handling.
+* DATAJPA-1571 - Migrate from Hamcrest to AssertJ.
+* DATAJPA-1569 - Revise readme for a consistent structure.
+* DATAJPA-1564 - Count query is faulty created when query have multiline select clause.
+* DATAJPA-1560 - CPU consumption of IllegalArgumentException during id derivation for entities with composite keys.
+* DATAJPA-1559 - Release 2.2 RC2 (Moore).
+* DATAJPA-1545 - Introduce Jenkins CI.
+* DATAJPA-1372 - Error while using ExampleMatcher with @embeded entity in spring data jpa.
+* DATAJPA-1368 - QueryDslJpaRepository.createQuery() throws NPE on WebSphere.
+* DATAJPA-1303 - Supports findByFieldIgnoreCaseIn(Collection<> fieldValues).
+* DATAJPA-1061 - Sorting doesn't work for field alias.
+* DATAJPA-433 - findAll(Iterable<ID> ids) not working on EclipseLink and Oracle.
+
+
+Changes in version 2.1.10.RELEASE (2019-08-05)
+----------------------------------------------
+* DATAJPA-1580 - Adapt EntityManagerBeanDefinitionRegistrarPostProcessor to latest changes in Spring Framework 5.2.
+* DATAJPA-1571 - Migrate from Hamcrest to AssertJ.
+* DATAJPA-1564 - Count query is faulty created when query have multiline select clause.
+* DATAJPA-1563 - Fix NoHTTP errors.
+* DATAJPA-1560 - CPU consumption of IllegalArgumentException during id derivation for entities with composite keys.
+* DATAJPA-1558 - Release 2.1.10 (Lovelace SR10).
+* DATAJPA-1545 - Introduce Jenkins CI.
+* DATAJPA-1372 - Error while using ExampleMatcher with @embeded entity in spring data jpa.
+* DATAJPA-1368 - QueryDslJpaRepository.createQuery() throws NPE on WebSphere.
+* DATAJPA-1230 - Make JpaRepositoryFactory agnostic of JpaRepository implementation.
+* DATAJPA-1061 - Sorting doesn't work for field alias.
+* DATAJPA-433 - findAll(Iterable<ID> ids) not working on EclipseLink and Oracle.
+
+
+Changes in version 1.11.23.RELEASE (2019-08-05)
+-----------------------------------------------
+* DATAJPA-1564 - Count query is faulty created when query have multiline select clause.
+* DATAJPA-1562 - Got IndexOutOfBoundsException when projecting data on maps list.
+* DATAJPA-1556 - Update faq.adoc: typo fix.
+* DATAJPA-1545 - Introduce Jenkins CI.
+* DATAJPA-1543 - Release 1.11.23 (Ingalls SR23).
+* DATAJPA-1535 - Simple Repository delete of unexisting entity generates insert + delete SQL.
+* DATAJPA-1500 - order by clause is not removed from derived count query when newline after the order by clause.
+* DATAJPA-1368 - QueryDslJpaRepository.createQuery() throws NPE on WebSphere.
+* DATAJPA-1061 - Sorting doesn't work for field alias.
+
+
+Changes in version 2.2.0.RC1 (2019-06-14)
+-----------------------------------------
+* DATAJPA-1557 - Build fails with new Hibernate versions due to changed errror messages.
+* DATAJPA-1556 - Update faq.adoc: typo fix.
+* DATAJPA-1554 - JpaQueryExecution.SlicedExecution fails on Unpaged pageabled.
+* DATAJPA-1552 - Create security policy readme.
+* DATAJPA-1549 - Various forms of polishing from the community.
+* DATAJPA-1535 - Simple Repository delete of unexisting entity generates insert + delete SQL.
+* DATAJPA-1529 - Release 2.2 RC1 (Moore).
+* DATAJPA-1500 - order by clause is not removed from derived count query when newline after the order by clause.
+* DATAJPA-1451 - Inconsistent Assert messages.
+* DATAJPA-1182 - Validate Collection/Scalar parameter declarations in PartTree query.
+* DATAJPA-707 - Support multiple out parameters ad hoc stored procedure.
+
+
+Changes in version 2.1.9.RELEASE (2019-06-14)
+---------------------------------------------
+* DATAJPA-1556 - Update faq.adoc: typo fix.
+* DATAJPA-1554 - JpaQueryExecution.SlicedExecution fails on Unpaged pageabled.
+* DATAJPA-1542 - Release 2.1.9 (Lovelace SR9).
+* DATAJPA-1535 - Simple Repository delete of unexisting entity generates insert + delete SQL.
+* DATAJPA-1500 - order by clause is not removed from derived count query when newline after the order by clause.
+* DATAJPA-1451 - Inconsistent Assert messages.
+
+
+Changes in version 1.11.22.RELEASE (2019-05-13)
+-----------------------------------------------
+* DATAJPA-1539 - Release 1.11.22 (Ingalls SR22).
+* DATAJPA-1534 - Wildcard character needs to be escaped in Spring data JPA.
+
+
+Changes in version 2.1.8.RELEASE (2019-05-13)
+---------------------------------------------
+* DATAJPA-1538 - Release 2.1.8 (Lovelace SR8).
+* DATAJPA-1534 - Wildcard character needs to be escaped in Spring data JPA.
+
+
+Changes in version 2.2.0.M4 (2019-05-13)
+----------------------------------------
+* DATAJPA-1534 - Wildcard character needs to be escaped in Spring data JPA.
+* DATAJPA-1533 - Builds are broken due to an outdated Mockito version.
+* DATAJPA-1531 - Release 2.2 M4 (Moore).
+* DATAJPA-1530 - JpaMetamodelEntityInformation does not unwrap ByteBuddy proxies.
+* DATAJPA-1506 - Wrong alias detection for native query.
+
+
+Changes in version 1.11.21.RELEASE (2019-05-10)
+-----------------------------------------------
+* DATAJPA-1523 - Release 1.11.21 (Ingalls SR21).
+* DATAJPA-1506 - Wrong alias detection for native query.
+
+
+Changes in version 2.1.7.RELEASE (2019-05-10)
+---------------------------------------------
+* DATAJPA-1533 - Builds are broken due to an outdated Mockito version.
+* DATAJPA-1530 - JpaMetamodelEntityInformation does not unwrap ByteBuddy proxies.
+* DATAJPA-1525 - Release 2.1.7 (Lovelace SR7).
+* DATAJPA-1506 - Wrong alias detection for native query.
+
+
+Changes in version 2.2.0.M3 (2019-04-11)
+----------------------------------------
+* DATAJPA-1522 - LIKE escape character needs to be escaped ins source value to be handled.
+* DATAJPA-1519 - Query derivation keywords implemented using like expressions do not properly escape underscores and percentages.
+* DATAJPA-1515 - Move off deprecations in Spring Data Commons.
+* DATAJPA-1513 - Release 2.2 M3 (Moore).
+
+
+Changes in version 2.1.6.RELEASE (2019-04-01)
+---------------------------------------------
+* DATAJPA-1522 - LIKE escape character needs to be escaped ins source value to be handled.
+* DATAJPA-1519 - Query derivation keywords implemented using like expressions do not properly escape underscores and percentages.
+* DATAJPA-1504 - Release 2.1.6 (Lovelace SR6).
+* DATAJPA-1498 - Upgrade Hibernate 5.4 build profile to 5.4.1.
+* DATAJPA-1404 - Is Null query does not return entities.
+* DATAJPA-1156 - Query hints are applied to count queries for QueryDSL even though forCounting is set to false.
+
+
+Changes in version 2.0.14.RELEASE (2019-04-01)
+----------------------------------------------
+* DATAJPA-1522 - LIKE escape character needs to be escaped ins source value to be handled.
+* DATAJPA-1519 - Query derivation keywords implemented using like expressions do not properly escape underscores and percentages.
+* DATAJPA-1502 - Typo in reference docs on Specification.
+* DATAJPA-1498 - Upgrade Hibernate 5.4 build profile to 5.4.1.
+* DATAJPA-1494 - Release 2.0.14 (Kay SR14).
+* DATAJPA-1404 - Is Null query does not return entities.
+* DATAJPA-1321 - JpaRepository.getOne(…) JavaDoc is misleading.
+* DATAJPA-1297 - outputParameterName in @Procedure is not being used to create the StoredProcedureAttributes.
+
+
+Changes in version 1.11.20.RELEASE (2019-04-01)
+-----------------------------------------------
+* DATAJPA-1522 - LIKE escape character needs to be escaped ins source value to be handled.
+* DATAJPA-1521 - Release 1.11.20 (Ingalls SR20).
+
+
+Changes in version 1.11.19.RELEASE (2019-04-01)
+-----------------------------------------------
+* DATAJPA-1519 - Query derivation keywords implemented using like expressions do not properly escape underscores and percentages.
+* DATAJPA-1502 - Typo in reference docs on Specification.
+* DATAJPA-1493 - Release 1.11.19 (Ingalls SR19).
+* DATAJPA-1297 - outputParameterName in @Procedure is not being used to create the StoredProcedureAttributes.
+
+
+Changes in version 2.2.0.M2 (2019-03-07)
+----------------------------------------
+* DATAJPA-1502 - Typo in reference docs on Specification.
+* DATAJPA-1492 - Introduce Concourse CI.
+* DATAJPA-1490 - Update copyright years to 2019.
+* DATAJPA-1487 - JpaMetamodelCacheCleanup must not be defined as lazy bean.
+* DATAJPA-1485 - Ambiguity around @Modifying within documentation.
+* DATAJPA-1484 - Add build profile for Hibernate 6 snapshots.
+* DATAJPA-1483 - Upgrade Hibernate 5.4 build profile after GA release.
+* DATAJPA-1481 - Release 2.2 M2 (Moore).
+* DATAJPA-1404 - Is Null query does not return entities.
+* DATAJPA-1321 - JpaRepository.getOne(…) JavaDoc is misleading.
+* DATAJPA-1297 - outputParameterName in @Procedure is not being used to create the StoredProcedureAttributes.
+* DATAJPA-1156 - Query hints are applied to count queries for QueryDSL even though forCounting is set to false.
+
+
+Changes in version 2.1.5.RELEASE (2019-02-13)
+---------------------------------------------
+* DATAJPA-1502 - Typo in reference docs on Specification.
+* DATAJPA-1495 - Release 2.1.5 (Lovelace SR5).
+* DATAJPA-1321 - JpaRepository.getOne(…) JavaDoc is misleading.
+* DATAJPA-1297 - outputParameterName in @Procedure is not being used to create the StoredProcedureAttributes.
+
+
+Changes in version 2.1.4.RELEASE (2019-01-10)
+---------------------------------------------
+* DATAJPA-1490 - Update copyright years to 2019.
+* DATAJPA-1487 - JpaMetamodelCacheCleanup must not be defined as lazy bean.
+* DATAJPA-1485 - Ambiguity around @Modifying within documentation.
+* DATAJPA-1484 - Add build profile for Hibernate 6 snapshots.
+* DATAJPA-1483 - Upgrade Hibernate 5.4 build profile after GA release.
+* DATAJPA-1473 - Add build profile for released Hibernate 5.4.
+* DATAJPA-1472 - Fix Travis build failing due to moved JDK8.
+* DATAJPA-1468 - Release 2.1.4 (Lovelace SR4).
+
+
+Changes in version 2.0.13.RELEASE (2019-01-10)
+----------------------------------------------
+* DATAJPA-1490 - Update copyright years to 2019.
+* DATAJPA-1485 - Ambiguity around @Modifying within documentation.
+* DATAJPA-1484 - Add build profile for Hibernate 6 snapshots.
+* DATAJPA-1483 - Upgrade Hibernate 5.4 build profile after GA release.
+* DATAJPA-1473 - Add build profile for released Hibernate 5.4.
+* DATAJPA-1472 - Fix Travis build failing due to moved JDK8.
+* DATAJPA-1467 - Release 2.0.13 (Kay SR13).
+
+
+Changes in version 1.11.18.RELEASE (2019-01-10)
+-----------------------------------------------
+* DATAJPA-1490 - Update copyright years to 2019.
+* DATAJPA-1485 - Ambiguity around @Modifying within documentation.
+* DATAJPA-1483 - Upgrade Hibernate 5.4 build profile after GA release.
+* DATAJPA-1473 - Add build profile for released Hibernate 5.4.
+* DATAJPA-1472 - Fix Travis build failing due to moved JDK8.
+* DATAJPA-1465 - Release 1.11.18 (Ingalls SR18).
+
+
+Changes in version 2.2.0.M1 (2018-12-11)
+----------------------------------------
+* DATAJPA-1479 - Simplify reference documentation setup.
+* DATAJPA-1478 - Release 2.2 M1 (Moore).
+* DATAJPA-1473 - Add build profile for released Hibernate 5.4.
+* DATAJPA-1472 - Fix Travis build failing due to moved JDK8.
+* DATAJPA-1455 - Build fails with a ClassNotFoundException.
+* DATAJPA-1450 - Remove `sudo` from .travis.yml.
+* DATAJPA-1449 - Remove Specifications from code and documentation.
+* DATAJPA-1448 - JpaAuditing duplicate bean definitions.
+* DATAJPA-1446 - Memory leak in class JpaMetamodel.
+* DATAJPA-1443 - Small corrections in JavaDoc.
+* DATAJPA-1418 - Interface-based Projections - Generate inner join instead of left join.
+* DATAJPA-1335 - add missing @override annotations.
+* DATAJPA-767 - Interoperation between @Version and entity state detection strategies is not documented.
+
+
+Changes in version 2.1.3.RELEASE (2018-11-27)
+---------------------------------------------
+* DATAJPA-1450 - Remove `sudo` from .travis.yml.
+* DATAJPA-1448 - JpaAuditing duplicate bean definitions.
+* DATAJPA-1447 - Release 2.1.3 (Lovelace SR3).
+
+
+Changes in version 2.0.12.RELEASE (2018-11-27)
+----------------------------------------------
+* DATAJPA-1450 - Remove `sudo` from .travis.yml.
+* DATAJPA-1448 - JpaAuditing duplicate bean definitions.
+* DATAJPA-1446 - Memory leak in class JpaMetamodel.
+* DATAJPA-1443 - Small corrections in JavaDoc.
+* DATAJPA-1440 - Release 2.0.12 (Kay SR12).
+* DATAJPA-1418 - Interface-based Projections - Generate inner join instead of left join.
+
+
+Changes in version 1.11.17.RELEASE (2018-11-27)
+-----------------------------------------------
+* DATAJPA-1450 - Remove `sudo` from .travis.yml.
+* DATAJPA-1448 - JpaAuditing duplicate bean definitions.
+* DATAJPA-1441 - Release 1.11.17 (Ingalls SR17).
+
+
+Changes in version 2.1.2.RELEASE (2018-10-29)
+---------------------------------------------
+* DATAJPA-1446 - Memory leak in class JpaMetamodel.
+* DATAJPA-1443 - Small corrections in JavaDoc.
+* DATAJPA-1439 - Release 2.1.2 (Lovelace SR2).
+* DATAJPA-1418 - Interface-based Projections - Generate inner join instead of left join.
+
+
+Changes in version 1.11.16.RELEASE (2018-10-15)
+-----------------------------------------------
+* DATAJPA-1419 - Release 1.11.16 (Ingalls SR16).
+
+
+Changes in version 2.0.11.RELEASE (2018-10-15)
+----------------------------------------------
+* DATAJPA-1420 - Release 2.0.11 (Kay SR11).
+
+
+Changes in version 2.1.1.RELEASE (2018-10-15)
+---------------------------------------------
+* DATAJPA-1424 - Release 2.1.1 (Lovelace SR1).
+
+
+Changes in version 2.1.0.RELEASE (2018-09-21)
+---------------------------------------------
+* DATAJPA-1416 - Saving lazy-loaded entity with IdClass throws TypeMismatchException.
+* DATAJPA-1407 - Release 2.1 GA (Lovelace).
+* DATAJPA-1333 - Minor performance improvements.
+
+
+Changes in version 2.0.10.RELEASE (2018-09-10)
+----------------------------------------------
+* DATAJPA-1416 - Saving lazy-loaded entity with IdClass throws TypeMismatchException.
+* DATAJPA-1405 - Assumption in EclipsLinkNamespaceUserRepositoryTests need to include 2.7.3.
+* DATAJPA-1402 - Ubgrade Hibernate 5.3 build profile to 5.3.5.
+* DATAJPA-1400 - Upgrade Eclipselink 2.7 build profiles.
+* DATAJPA-1399 - Add Travis build executions for Spring 5.1.
+* DATAJPA-1398 - Upgrade to Hibernate 5.2.17.
+* DATAJPA-1387 - Release 2.0.10 (Kay SR10).
+* DATAJPA-1379 - NamedQueries with "SELECT NEW" constructor expression cause QueryException.
+* DATAJPA-1333 - Minor performance improvements.
+
+
+Changes in version 1.11.15.RELEASE (2018-09-10)
+-----------------------------------------------
+* DATAJPA-1405 - Assumption in EclipsLinkNamespaceUserRepositoryTests need to include 2.7.3.
+* DATAJPA-1403 - 1.11.x Builds are broken for Hibernate 5.x.
+* DATAJPA-1402 - Ubgrade Hibernate 5.3 build profile to 5.3.5.
+* DATAJPA-1400 - Upgrade Eclipselink 2.7 build profiles.
+* DATAJPA-1399 - Add Travis build executions for Spring 5.1.
+* DATAJPA-1398 - Upgrade to Hibernate 5.2.17.
+* DATAJPA-1388 - Release 1.11.15 (Ingalls SR15).
+* DATAJPA-1333 - Minor performance improvements.
+
+
+Changes in version 2.1.0.RC2 (2018-08-20)
+-----------------------------------------
+* DATAJPA-1405 - Assumption in EclipsLinkNamespaceUserRepositoryTests need to include 2.7.3.
+* DATAJPA-1402 - Ubgrade Hibernate 5.3 build profile to 5.3.5.
+* DATAJPA-1400 - Upgrade Eclipselink 2.7 build profiles.
+* DATAJPA-1398 - Upgrade to Hibernate 5.2.17.
+* DATAJPA-1397 - Add support for deferred repository initialization.
+* DATAJPA-1394 - Avoid repeated lookups of EntityPathResolver from JpaRepositoryFactory.
+* DATAJPA-1386 - Release 2.1 RC2 (Lovelace).
+* DATAJPA-1379 - NamedQueries with "SELECT NEW" constructor expression cause QueryException.
+
+
+Changes in version 1.11.14.RELEASE (2018-07-27)
+-----------------------------------------------
+* DATAJPA-1374 - Upgrade Hibernate 5.3 build profile to 5.3.2.
+* DATAJPA-1363 - Alias for complex Function.
+* DATAJPA-1361 - Release 1.11.14 (Ingalls SR14).
+
+
+Changes in version 2.0.9.RELEASE (2018-07-26)
+---------------------------------------------
+* DATAJPA-1382 - Remove superfluous call to getVersionProperty in JpaPersistentEntityImpl.
+* DATAJPA-1375 - JpaRepositoryFactory.getTargetRepository(…) still requires ID to extend Serializable.
+* DATAJPA-1374 - Upgrade Hibernate 5.3 build profile to 5.3.2.
+* DATAJPA-1363 - Alias for complex Function.
+* DATAJPA-1362 - Release 2.0.9 (Kay SR9).
+* DATAJPA-1281 - Improve exception messages for invalid parameter definitions in repository query methods.
+* DATAJPA-1163 - spring-data fails when #{#entityName} SpEL is using in countQuery definition.
+
+
+Changes in version 2.1.0.RC1 (2018-07-26)
+-----------------------------------------
+* DATAJPA-1382 - Remove superfluous call to getVersionProperty in JpaPersistentEntityImpl.
+* DATAJPA-1374 - Upgrade Hibernate 5.3 build profile to 5.3.2.
+* DATAJPA-1363 - Alias for complex Function.
+* DATAJPA-1359 - Move to org.hibernate.query.Query to avoid reflection overhead in HibernateUtils.
+* DATAJPA-1348 - Upgrade build to Hibernate 5.3 GA.
+* DATAJPA-1347 - Improve proxy detection to properly detect Hibernate 5.3 proxies.
+* DATAJPA-1346 - Release 2.1 RC1 (Lovelace).
+* DATAJPA-1336 - remove unused imports.
+* DATAJPA-1281 - Improve exception messages for invalid parameter definitions in repository query methods.
+* DATAJPA-1267 - Integrate newly created API to detect SpEL expressions in repository queries.
+* DATAJPA-1238 - Unnecessary LEFT OUTER JOIN when a WHERE could have been used.
+* DATAJPA-1163 - spring-data fails when #{#entityName} SpEL is using in countQuery definition.
+
+
+Changes in version 2.0.8.RELEASE (2018-06-13)
+---------------------------------------------
+* DATAJPA-1359 - Move to org.hibernate.query.Query to avoid reflection overhead in HibernateUtils.
+* DATAJPA-1348 - Upgrade build to Hibernate 5.3 GA.
+* DATAJPA-1347 - Improve proxy detection to properly detect Hibernate 5.3 proxies.
+* DATAJPA-1343 - Add coverpage for epub documentation output.
+* DATAJPA-1341 - Fix typo in AbstractAuditable.
+* DATAJPA-1340 - Release 2.0.8 (Kay SR8).
+* DATAJPA-1336 - remove unused imports.
+* DATAJPA-1334 - Named queries using a constructor expression not working properly.
+* DATAJPA-1280 - Using manual SqlResultSetMapping with named native queries fails.
+* DATAJPA-1238 - Unnecessary LEFT OUTER JOIN when a WHERE could have been used.
+
+
+Changes in version 1.11.13.RELEASE (2018-06-13)
+-----------------------------------------------
+* DATAJPA-1348 - Upgrade build to Hibernate 5.3 GA.
+* DATAJPA-1347 - Improve proxy detection to properly detect Hibernate 5.3 proxies.
+* DATAJPA-1343 - Add coverpage for epub documentation output.
+* DATAJPA-1341 - Fix typo in AbstractAuditable.
+* DATAJPA-1339 - Release 1.11.13 (Ingalls SR13).
+* DATAJPA-1334 - Named queries using a constructor expression not working properly.
+* DATAJPA-1280 - Using manual SqlResultSetMapping with named native queries fails.
+* DATAJPA-1238 - Unnecessary LEFT OUTER JOIN when a WHERE could have been used.
+
+
 Changes in version 2.1.0.M3 (2018-05-17)
 ----------------------------------------
 * DATAJPA-1344 - Adapt to SpEL extension API changes in Spring Data Commons.

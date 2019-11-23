@@ -1,11 +1,11 @@
 /*
- * Copyright 2016-2018 the original author or authors.
+ * Copyright 2016-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,16 +16,17 @@
 package org.springframework.data.jpa.util;
 
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.persistence.metamodel.EntityType;
 import javax.persistence.metamodel.ManagedType;
 import javax.persistence.metamodel.Metamodel;
 import javax.persistence.metamodel.SingularAttribute;
 
+import org.springframework.data.util.Lazy;
+import org.springframework.data.util.StreamUtils;
 import org.springframework.util.Assert;
 
 /**
@@ -33,23 +34,34 @@ import org.springframework.util.Assert;
  *
  * @author Oliver Gierke
  * @author Mark Paluch
+ * @author Sylvère Richard
  */
 public class JpaMetamodel {
 
+	private static final Map<Metamodel, JpaMetamodel> CACHE = new ConcurrentHashMap<>(4);
+
 	private final Metamodel metamodel;
 
-	private Optional<Collection<Class<?>>> managedTypes = Optional.empty();
+	private Lazy<Collection<Class<?>>> managedTypes;
 
 	/**
 	 * Creates a new {@link JpaMetamodel} for the given JPA {@link Metamodel}.
 	 *
 	 * @param metamodel must not be {@literal null}.
 	 */
-	public JpaMetamodel(Metamodel metamodel) {
+	private JpaMetamodel(Metamodel metamodel) {
 
 		Assert.notNull(metamodel, "Metamodel must not be null!");
 
 		this.metamodel = metamodel;
+		this.managedTypes = Lazy.of(() -> metamodel.getManagedTypes().stream() //
+				.map(ManagedType::getJavaType) //
+				.filter(it -> it != null) //
+				.collect(StreamUtils.toUnmodifiableSet()));
+	}
+
+	public static JpaMetamodel of(Metamodel metamodel) {
+		return CACHE.computeIfAbsent(metamodel, JpaMetamodel::new);
 	}
 
 	/**
@@ -62,7 +74,7 @@ public class JpaMetamodel {
 
 		Assert.notNull(type, "Type must not be null!");
 
-		return getManagedTypes().contains(type);
+		return managedTypes.get().contains(type);
 	}
 
 	/**
@@ -85,32 +97,10 @@ public class JpaMetamodel {
 	}
 
 	/**
-	 * Returns all types managed by the backing {@link Metamodel}. Skips {@link ManagedType} instances that return
-	 * {@literal null} for calls to {@link ManagedType#getJavaType()}.
-	 *
-	 * @return all managed types.
-	 * @see <a href="https://hibernate.atlassian.net/browse/HHH-10968">HHH-10968</a>
+	 * Wipes the static cache of {@link Metamodel} to {@link JpaMetamodel}.
 	 */
-	private Collection<Class<?>> getManagedTypes() {
-
-		if (!managedTypes.isPresent()) {
-
-			Set<ManagedType<?>> managedTypes = metamodel.getManagedTypes();
-			Set<Class<?>> types = new HashSet<Class<?>>(managedTypes.size());
-
-			for (ManagedType<?> managedType : metamodel.getManagedTypes()) {
-
-				Class<?> type = managedType.getJavaType();
-
-				if (type != null) {
-					types.add(type);
-				}
-			}
-
-			this.managedTypes = Optional.of(Collections.unmodifiableSet(types));
-		}
-
-		return this.managedTypes.get();
+	static void clear() {
+		CACHE.clear();
 	}
 
 	/**

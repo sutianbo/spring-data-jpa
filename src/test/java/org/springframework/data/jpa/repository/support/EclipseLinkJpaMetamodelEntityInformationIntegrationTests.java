@@ -1,11 +1,11 @@
 /*
- * Copyright 2013-2018 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,7 +15,7 @@
  */
 package org.springframework.data.jpa.repository.support;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.*;
 
 import java.io.Serializable;
 
@@ -41,7 +41,7 @@ public class EclipseLinkJpaMetamodelEntityInformationIntegrationTests
 	public void reactivatedDetectsIdTypeForMappedSuperclass() {
 		JpaEntityInformation<?, ?> information = JpaEntityInformationSupport.getEntityInformation(AbstractPersistable.class,
 				em);
-		assertEquals(String.class, information.getIdType());
+		assertThat(information.getIdType()).isEqualTo(String.class);
 	}
 
 	/**
@@ -66,18 +66,32 @@ public class EclipseLinkJpaMetamodelEntityInformationIntegrationTests
 	 * Re-activate test for DATAJPA-820.
 	 */
 	@Test
+	@Override
 	public void detectsVersionPropertyOnMappedSuperClass() {
 		super.detectsVersionPropertyOnMappedSuperClass();
 	}
 
 	/**
-	 * Ignored due to https://bugs.eclipse.org/bugs/show_bug.cgi?id=531528 EclipseLink doesn't support
-	 * {@link javax.persistence.IdClass} referencing inner classes.
+	 * This test fails due to https://bugs.eclipse.org/bugs/show_bug.cgi?id=531528 IdentifiableType.hasSingleIdAttribute()
+	 * returns true when IdClass references an inner class. This bug is supposedly fixed, but the test still fails.
 	 */
 	@Ignore
 	@Test
 	@Override
-	public void correctlyDeterminesIdValueForNestedIdClassesWithNonPrimitiveNonManagedType() {}
+	public void correctlyDeterminesIdValueForNestedIdClassesWithNonPrimitiveNonManagedType() {
+		super.correctlyDeterminesIdValueForNestedIdClassesWithNonPrimitiveNonManagedType();
+	}
+
+	/**
+	 * This test fails due to https://bugs.eclipse.org/bugs/show_bug.cgi?id=531528 IdentifiableType.hasSingleIdAttribute()
+	 * returns true when IdClass references an inner class. This bug is supposedly fixed, but the test still fails.
+	 */
+	@Ignore
+	@Test
+	@Override
+	public void proxiedIdClassElement() {
+		super.proxiedIdClassElement();
+	}
 
 	@Override
 	protected String getMetadadataPersitenceUnitName() {

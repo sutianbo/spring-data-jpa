@@ -1,11 +1,11 @@
 /*
- * Copyright 2017-2018 the original author or authors.
+ * Copyright 2017-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -106,8 +106,8 @@ abstract class QueryParameterSetterFactory {
 	 * @param binding the binding of the query parameter to be set.
 	 * @param parameter the method parameter to bind.
 	 */
-	private static QueryParameterSetter createSetter(Function<Object[], Object> valueExtractor, ParameterBinding binding,
-			@Nullable JpaParameter parameter) {
+	private static QueryParameterSetter createSetter(Function<JpaParametersParameterAccessor, Object> valueExtractor,
+			ParameterBinding binding, @Nullable JpaParameter parameter) {
 
 		TemporalType temporalType = parameter != null && parameter.isTemporalParameter() //
 				? parameter.getRequiredTemporalType() //
@@ -172,9 +172,10 @@ abstract class QueryParameterSetterFactory {
 		 * @return the result of the evaluation.
 		 */
 		@Nullable
-		private Object evaluateExpression(Expression expression, Object[] values) {
+		private Object evaluateExpression(Expression expression, JpaParametersParameterAccessor accessor) {
 
-			EvaluationContext context = evaluationContextProvider.getEvaluationContext(parameters, values);
+			EvaluationContext context = evaluationContextProvider.getEvaluationContext(parameters, accessor.getValues());
+
 			return expression.getValue(context, Object.class);
 		}
 	}
@@ -209,9 +210,26 @@ abstract class QueryParameterSetterFactory {
 
 			Assert.notNull(binding, "Binding must not be null.");
 
-			JpaParameter parameter = declaredQuery.hasNamedParameter() //
-					? findParameterForBinding(binding) //
-					: parameters.getBindableParameter(binding.getRequiredPosition() - 1);
+			JpaParameter parameter;
+
+			if (declaredQuery.hasNamedParameter()) {
+				parameter = findParameterForBinding(binding);
+			} else {
+
+				int parameterIndex = binding.getRequiredPosition() - 1;
+				JpaParameters bindableParameters = parameters.getBindableParameters();
+
+				Assert.isTrue( //
+						parameterIndex < bindableParameters.getNumberOfParameters(), //
+						() -> String.format( //
+								"At least %s parameter(s) provided but only %s parameter(s) present in query.", //
+								binding.getRequiredPosition(), //
+								bindableParameters.getNumberOfParameters() //
+						) //
+				);
+
+				parameter = bindableParameters.getParameter(binding.getRequiredPosition() - 1);
+			}
 
 			return parameter == null //
 					? QueryParameterSetter.NOOP //
@@ -221,13 +239,19 @@ abstract class QueryParameterSetterFactory {
 		@Nullable
 		private JpaParameter findParameterForBinding(ParameterBinding binding) {
 
-			return parameters.getBindableParameters().stream() //
-					.filter(candidate -> binding.getRequiredName().equals(getName(candidate))) //
-					.findFirst().orElse(null);
+			JpaParameters bindableParameters = parameters.getBindableParameters();
+
+			for (JpaParameter bindableParameter : bindableParameters) {
+				if (binding.getRequiredName().equals(getName(bindableParameter))) {
+					return bindableParameter;
+				}
+			}
+
+			return null;
 		}
 
-		private Object getValue(Object[] values, Parameter parameter) {
-			return new JpaParametersParameterAccessor(parameters, values).getValue(parameter);
+		private Object getValue(JpaParametersParameterAccessor accessor, Parameter parameter) {
+			return accessor.getValue(parameter);
 		}
 
 		private static String getName(JpaParameter p) {
@@ -236,10 +260,9 @@ abstract class QueryParameterSetterFactory {
 	}
 
 	/**
-	 * {@link QueryParameterSetterFactory}
-	 *
 	 * @author Jens Schauder
 	 * @author Oliver Gierke
+	 * @see QueryParameterSetterFactory
 	 */
 	private static class CriteriaQueryParameterSetterFactory extends QueryParameterSetterFactory {
 
@@ -269,24 +292,34 @@ abstract class QueryParameterSetterFactory {
 		@Override
 		public QueryParameterSetter create(ParameterBinding binding, DeclaredQuery declaredQuery) {
 
-			ParameterMetadata<?> metadata = expressions.get(binding.getRequiredPosition() - 1);
+			int parameterIndex = binding.getRequiredPosition() - 1;
+
+			Assert.isTrue( //
+					parameterIndex < expressions.size(), //
+					() -> String.format( //
+							"At least %s parameter(s) provided but only %s parameter(s) present in query.", //
+							binding.getRequiredPosition(), //
+							expressions.size() //
+					) //
+			);
+
+			ParameterMetadata<?> metadata = expressions.get(parameterIndex);
 
 			if (metadata.isIsNullParameter()) {
 				return QueryParameterSetter.NOOP;
 			}
 
-			JpaParameter parameter = parameters.getBindableParameter(binding.getRequiredPosition() - 1);
+			JpaParameter parameter = parameters.getBindableParameter(parameterIndex);
 			TemporalType temporalType = parameter.isTemporalParameter() ? parameter.getRequiredTemporalType() : null;
 
-			return new NamedOrIndexedQueryParameterSetter(values -> getAndPrepare(parameter, metadata, values),
-					metadata.getExpression(), temporalType);
+			return new NamedOrIndexedQueryParameterSetter(values -> {
+				return getAndPrepare(parameter, metadata, values);
+			}, metadata.getExpression(), temporalType);
 		}
 
 		@Nullable
-		private Object getAndPrepare(JpaParameter parameter, ParameterMetadata<?> metadata, Object[] values) {
-
-			JpaParametersParameterAccessor accessor = new JpaParametersParameterAccessor(parameters, values);
-
+		private Object getAndPrepare(JpaParameter parameter, ParameterMetadata<?> metadata,
+				JpaParametersParameterAccessor accessor) {
 			return metadata.prepare(accessor.getValue(parameter));
 		}
 	}

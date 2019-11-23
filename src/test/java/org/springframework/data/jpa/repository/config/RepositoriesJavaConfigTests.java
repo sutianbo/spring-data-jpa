@@ -1,11 +1,11 @@
 /*
- * Copyright 2013-2018 the original author or authors.
+ * Copyright 2013-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,7 @@
  */
 package org.springframework.data.jpa.repository.config;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.*;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,30 +34,29 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  * Integration test for the combination of JavaConfig and an {@link Repositories} wrapper.
  *
  * @author Oliver Gierke
+ * @author Jens Schauder
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
 public class RepositoriesJavaConfigTests {
+
+	@Autowired Repositories repositories;
+
+	@Test // DATAJPA-323
+	public void foo() {
+		assertThat(repositories.hasRepositoryFor(User.class)).isTrue();
+	}
 
 	@Configuration
 	@EnableJpaRepositories(basePackageClasses = UserRepository.class)
 	@ImportResource("classpath:infrastructure.xml")
 	static class Config {
 
-		@Autowired
-		ApplicationContext context;
+		@Autowired ApplicationContext context;
 
 		@Bean
 		public Repositories repositories() {
 			return new Repositories(context);
 		}
-	}
-
-	@Autowired
-	Repositories repositories;
-
-	@Test // DATAJPA-323
-	public void foo() {
-		assertThat(repositories.hasRepositoryFor(User.class), is(true));
 	}
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2011-2018 the original author or authors.
+ * Copyright 2011-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -156,4 +156,33 @@ public class SimpleJpaRepositoryUnitTests {
 
 		verify(em).merge(attachedUser);
 	}
+
+	@Test // DATAJPA-1535
+	public void doNothingWhenNewInstanceGetsDeleted() {
+
+		User newUser = new User();
+		newUser.setId(null);
+
+		repo.delete(newUser);
+
+		verify(em, never()).find(any(Class.class), any(Object.class));
+		verify(em, never()).remove(newUser);
+		verify(em, never()).merge(newUser);
+	}
+
+	@Test // DATAJPA-1535
+	public void doNothingWhenNonExistentInstanceGetsDeleted() {
+
+		User newUser = new User();
+		newUser.setId(23);
+
+		when(information.isNew(newUser)).thenReturn(false);
+		when(em.find(User.class,23)).thenReturn(null);
+
+		repo.delete(newUser);
+
+		verify(em, never()).remove(newUser);
+		verify(em, never()).merge(newUser);
+	}
+
 }

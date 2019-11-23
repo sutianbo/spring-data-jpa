@@ -1,11 +1,11 @@
 /*
- * Copyright 2008-2018 the original author or authors.
+ * Copyright 2008-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,9 @@ import static org.springframework.data.querydsl.QuerydslUtils.*;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Tuple;
@@ -32,6 +34,7 @@ import org.springframework.data.jpa.provider.PersistenceProvider;
 import org.springframework.data.jpa.provider.QueryExtractor;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.query.AbstractJpaQuery;
+import org.springframework.data.jpa.repository.query.EscapeCharacter;
 import org.springframework.data.jpa.repository.query.JpaQueryLookupStrategy;
 import org.springframework.data.jpa.repository.query.JpaQueryMethod;
 import org.springframework.data.jpa.util.JpaMetamodel;
@@ -45,12 +48,14 @@ import org.springframework.data.repository.core.support.QueryCreationListener;
 import org.springframework.data.repository.core.support.RepositoryComposition;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 import org.springframework.data.repository.core.support.RepositoryFragment;
+import org.springframework.data.repository.core.support.SurroundingTransactionDetectorMethodInterceptor;
 import org.springframework.data.repository.query.QueryLookupStrategy;
 import org.springframework.data.repository.query.QueryLookupStrategy.Key;
 import org.springframework.data.repository.query.QueryMethodEvaluationContextProvider;
 import org.springframework.data.repository.query.ReturnedType;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+import org.springframework.util.ReflectionUtils;
 
 /**
  * JPA specific generic repository factory.
@@ -68,6 +73,7 @@ public class JpaRepositoryFactory extends RepositoryFactorySupport {
 	private final CrudMethodMetadataPostProcessor crudMethodMetadataPostProcessor;
 
 	private EntityPathResolver entityPathResolver;
+	private EscapeCharacter escapeCharacter = EscapeCharacter.DEFAULT;
 
 	/**
 	 * Creates a new {@link JpaRepositoryFactory}.
@@ -84,6 +90,12 @@ public class JpaRepositoryFactory extends RepositoryFactorySupport {
 		this.entityPathResolver = SimpleEntityPathResolver.INSTANCE;
 
 		addRepositoryProxyPostProcessor(crudMethodMetadataPostProcessor);
+		addRepositoryProxyPostProcessor((factory, repositoryInformation) -> {
+
+			if (hasMethodReturningStream(repositoryInformation.getRepositoryInterface())) {
+				factory.addAdvice(SurroundingTransactionDetectorMethodInterceptor.INSTANCE);
+			}
+		});
 
 		if (extractor.equals(PersistenceProvider.ECLIPSELINK)) {
 			addQueryCreationListener(new EclipseLinkProjectionQueryCreationListener(entityManager));
@@ -103,7 +115,7 @@ public class JpaRepositoryFactory extends RepositoryFactorySupport {
 
 	/**
 	 * Configures the {@link EntityPathResolver} to be used. Defaults to {@link SimpleEntityPathResolver#INSTANCE}.
-	 * 
+	 *
 	 * @param entityPathResolver must not be {@literal null}.
 	 */
 	public void setEntityPathResolver(EntityPathResolver entityPathResolver) {
@@ -111,6 +123,15 @@ public class JpaRepositoryFactory extends RepositoryFactorySupport {
 		Assert.notNull(entityPathResolver, "EntityPathResolver must not be null!");
 
 		this.entityPathResolver = entityPathResolver;
+	}
+
+	/**
+	 * Configures the escape character to be used for like-expressions created for derived queries.
+	 *
+	 * @param escapeCharacter a character used for escaping in certain like expressions.
+	 */
+	public void setEscapeCharacter(EscapeCharacter escapeCharacter) {
+		this.escapeCharacter = escapeCharacter;
 	}
 
 	/*
@@ -122,6 +143,7 @@ public class JpaRepositoryFactory extends RepositoryFactorySupport {
 
 		JpaRepositoryImplementation<?, ?> repository = getTargetRepository(information, entityManager);
 		repository.setRepositoryMethodMetadata(crudMethodMetadataPostProcessor.getCrudMethodMetadata());
+		repository.setEscapeCharacter(escapeCharacter);
 
 		return repository;
 	}
@@ -174,7 +196,8 @@ public class JpaRepositoryFactory extends RepositoryFactorySupport {
 	@Override
 	protected Optional<QueryLookupStrategy> getQueryLookupStrategy(@Nullable Key key,
 			QueryMethodEvaluationContextProvider evaluationContextProvider) {
-		return Optional.of(JpaQueryLookupStrategy.create(entityManager, key, extractor, evaluationContextProvider));
+		return Optional
+				.of(JpaQueryLookupStrategy.create(entityManager, key, extractor, evaluationContextProvider, escapeCharacter));
 	}
 
 	/*
@@ -218,6 +241,19 @@ public class JpaRepositoryFactory extends RepositoryFactorySupport {
 		return fragments;
 	}
 
+	private static boolean hasMethodReturningStream(Class<?> repositoryClass) {
+
+		Method[] methods = ReflectionUtils.getAllDeclaredMethods(repositoryClass);
+
+		for (Method method : methods) {
+			if (Stream.class.isAssignableFrom(method.getReturnType())) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	/**
 	 * Query creation listener that informs EclipseLink users that they have to be extra careful when defining repository
 	 * query methods using projections as we have to rely on the declaration order of the accessors in projection
@@ -239,17 +275,17 @@ public class JpaRepositoryFactory extends RepositoryFactorySupport {
 
 		/**
 		 * Creates a new {@link EclipseLinkProjectionQueryCreationListener} for the given {@link EntityManager}.
-		 * 
+		 *
 		 * @param em must not be {@literal null}.
 		 */
 		public EclipseLinkProjectionQueryCreationListener(EntityManager em) {
 
 			Assert.notNull(em, "EntityManager must not be null!");
 
-			this.metamodel = new JpaMetamodel(em.getMetamodel());
+			this.metamodel = JpaMetamodel.of(em.getMetamodel());
 		}
 
-		/* 
+		/*
 		 * (non-Javadoc)
 		 * @see org.springframework.data.repository.core.support.QueryCreationListener#onCreation(org.springframework.data.repository.query.RepositoryQuery)
 		 */

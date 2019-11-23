@@ -1,11 +1,11 @@
 /*
- * Copyright 2018 the original author or authors.
+ * Copyright 2018-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,10 +19,11 @@ import java.util.Optional;
 
 import org.hibernate.proxy.HibernateProxy;
 import org.springframework.data.util.ProxyUtils.ProxyDetector;
+import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 
 /**
- * {@link org.springframework.data.util.ProxyDetector} to explicitly check for Hibernate's {@link HibernateProxy}.
+ * {@link ProxyDetector} to explicitly check for Hibernate's {@link HibernateProxy}.
  * 
  * @author Oliver Gierke
  */
@@ -43,7 +44,8 @@ class HibernateProxyDetector implements ProxyDetector {
 				.orElse(type);
 	}
 
-	private static final Class<?> loadHibernateProxyType() {
+	@Nullable
+	private static Class<?> loadHibernateProxyType() {
 
 		try {
 			return ClassUtils.forName("org.hibernate.proxy.HibernateProxy", HibernateProxyDetector.class.getClassLoader());

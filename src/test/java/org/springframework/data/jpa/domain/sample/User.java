@@ -1,11 +1,11 @@
 /*
- * Copyright 2008-2018 the original author or authors.
+ * Copyright 2008-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,35 +20,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.ColumnResult;
-import javax.persistence.ElementCollection;
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Lob;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedAttributeNode;
-import javax.persistence.NamedEntityGraph;
-import javax.persistence.NamedEntityGraphs;
-import javax.persistence.NamedNativeQueries;
-import javax.persistence.NamedNativeQuery;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.NamedStoredProcedureQueries;
-import javax.persistence.NamedStoredProcedureQuery;
-import javax.persistence.NamedSubgraph;
-import javax.persistence.ParameterMode;
-import javax.persistence.SqlResultSetMapping;
-import javax.persistence.SqlResultSetMappings;
-import javax.persistence.StoredProcedureParameter;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
+import javax.persistence.*;
 
 /**
  * Domain class representing a person emphasizing the use of {@code AbstractEntity}. No declaration of an id is
@@ -58,6 +30,8 @@ import javax.persistence.TemporalType;
  * @author Thomas Darimont
  * @author Christoph Strobl
  * @author Jens Schauder
+ * @author Jeff Sheets
+ * @author JyotirmoyVS
  */
 @Entity
 @NamedEntityGraphs({ @NamedEntityGraph(name = "User.overview", attributeNodes = { @NamedAttributeNode("roles") }),
@@ -92,7 +66,15 @@ import javax.persistence.TemporalType;
 @NamedStoredProcedureQueries({ //
 		@NamedStoredProcedureQuery(name = "User.plus1", procedureName = "plus1inout",
 				parameters = { @StoredProcedureParameter(mode = ParameterMode.IN, name = "arg", type = Integer.class),
-						@StoredProcedureParameter(mode = ParameterMode.OUT, name = "res", type = Integer.class) }) //
+						@StoredProcedureParameter(mode = ParameterMode.OUT, name = "res", type = Integer.class) }), //
+		@NamedStoredProcedureQuery(name = "User.plus1IO2", procedureName = "plus1inout2",
+				parameters = { @StoredProcedureParameter(mode = ParameterMode.IN, name = "arg", type = Integer.class),
+						@StoredProcedureParameter(mode = ParameterMode.OUT, name = "res", type = Integer.class),
+						@StoredProcedureParameter(mode = ParameterMode.OUT, name = "res2", type = Integer.class) }), //
+		@NamedStoredProcedureQuery(name = "User.plus1IOoptional", procedureName = "plus1inoutoptional",
+				parameters = { @StoredProcedureParameter(mode = ParameterMode.IN, name = "arg", type = Integer.class),
+						@StoredProcedureParameter(mode = ParameterMode.OUT, name = "res", type = Integer.class),
+						@StoredProcedureParameter(mode = ParameterMode.OUT, name = "res2", type = Integer.class) }) // DATAJPA-1579
 })
 @NamedStoredProcedureQuery(name = "User.plus1IO", procedureName = "plus1inout",
 		parameters = { @StoredProcedureParameter(mode = ParameterMode.IN, name = "arg", type = Integer.class),

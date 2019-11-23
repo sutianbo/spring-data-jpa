@@ -1,11 +1,11 @@
 /*
- * Copyright 2008-2018 the original author or authors.
+ * Copyright 2008-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,9 +34,6 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 import org.springframework.data.jpa.provider.PersistenceProvider;
 import org.springframework.data.repository.core.support.SurroundingTransactionDetectorMethodInterceptor;
-import org.springframework.data.repository.query.ParameterAccessor;
-import org.springframework.data.repository.query.Parameters;
-import org.springframework.data.repository.query.ParametersParameterAccessor;
 import org.springframework.data.repository.support.PageableExecutionUtils;
 import org.springframework.data.util.CloseableIterator;
 import org.springframework.data.util.StreamUtils;
@@ -80,15 +77,15 @@ public abstract class JpaQueryExecution {
 	 * @return
 	 */
 	@Nullable
-	public Object execute(AbstractJpaQuery query, Object[] values) {
+	public Object execute(AbstractJpaQuery query, JpaParametersParameterAccessor accessor) {
 
 		Assert.notNull(query, "AbstractJpaQuery must not be null!");
-		Assert.notNull(values, "Values must not be null!");
+		Assert.notNull(accessor, "JpaParametersParameterAccessor must not be null!");
 
 		Object result;
 
 		try {
-			result = doExecute(query, values);
+			result = doExecute(query, accessor);
 		} catch (NoResultException e) {
 			return null;
 		}
@@ -117,7 +114,7 @@ public abstract class JpaQueryExecution {
 	 * @return
 	 */
 	@Nullable
-	protected abstract Object doExecute(AbstractJpaQuery query, Object[] values);
+	protected abstract Object doExecute(AbstractJpaQuery query, JpaParametersParameterAccessor accessor);
 
 	/**
 	 * Executes the query to return a simple collection of entities.
@@ -125,8 +122,8 @@ public abstract class JpaQueryExecution {
 	static class CollectionExecution extends JpaQueryExecution {
 
 		@Override
-		protected Object doExecute(AbstractJpaQuery query, Object[] values) {
-			return query.createQuery(values).getResultList();
+		protected Object doExecute(AbstractJpaQuery query, JpaParametersParameterAccessor accessor) {
+			return query.createQuery(accessor).getResultList();
 		}
 	}
 
@@ -138,36 +135,30 @@ public abstract class JpaQueryExecution {
 	 */
 	static class SlicedExecution extends JpaQueryExecution {
 
-		private final Parameters<?, ?> parameters;
-
-		/**
-		 * Creates a new {@link SlicedExecution} using the given {@link Parameters}.
-		 *
-		 * @param parameters must not be {@literal null}.
-		 */
-		public SlicedExecution(Parameters<?, ?> parameters) {
-			this.parameters = parameters;
-		}
-
 		/*
 		 * (non-Javadoc)
 		 * @see org.springframework.data.jpa.repository.query.JpaQueryExecution#doExecute(org.springframework.data.jpa.repository.query.AbstractJpaQuery, java.lang.Object[])
 		 */
 		@Override
 		@SuppressWarnings("unchecked")
-		protected Object doExecute(AbstractJpaQuery query, Object[] values) {
+		protected Object doExecute(AbstractJpaQuery query, JpaParametersParameterAccessor accessor) {
 
-			ParametersParameterAccessor accessor = new ParametersParameterAccessor(parameters, values);
 			Pageable pageable = accessor.getPageable();
+			Query createQuery = query.createQuery(accessor);
 
-			Query createQuery = query.createQuery(values);
-			int pageSize = pageable.getPageSize();
-			createQuery.setMaxResults(pageSize + 1);
+			int pageSize = 0;
+			if (pageable.isPaged()) {
+
+				pageSize = pageable.getPageSize();
+				createQuery.setMaxResults(pageSize + 1);
+			}
 
 			List<Object> resultList = createQuery.getResultList();
-			boolean hasNext = resultList.size() > pageSize;
 
-			return new SliceImpl<Object>(hasNext ? resultList.subList(0, pageSize) : resultList, pageable, hasNext);
+			boolean hasNext = pageable.isPaged() && resultList.size() > pageSize;
+
+			return new SliceImpl<>(hasNext ? resultList.subList(0, pageSize) : resultList, pageable, hasNext);
+
 		}
 	}
 
@@ -177,28 +168,19 @@ public abstract class JpaQueryExecution {
 	 */
 	static class PagedExecution extends JpaQueryExecution {
 
-		private final Parameters<?, ?> parameters;
-
-		public PagedExecution(Parameters<?, ?> parameters) {
-
-			this.parameters = parameters;
-		}
-
 		@Override
 		@SuppressWarnings("unchecked")
-		protected Object doExecute(final AbstractJpaQuery repositoryQuery, final Object[] values) {
+		protected Object doExecute(final AbstractJpaQuery repositoryQuery, JpaParametersParameterAccessor accessor) {
 
-			ParameterAccessor accessor = new ParametersParameterAccessor(parameters, values);
-			Query query = repositoryQuery.createQuery(values);
+			Query query = repositoryQuery.createQuery(accessor);
 
 			return PageableExecutionUtils.getPage(query.getResultList(), accessor.getPageable(),
-					() -> count(repositoryQuery, values));
-
+					() -> count(repositoryQuery, accessor));
 		}
 
-		private long count(AbstractJpaQuery repositoryQuery, Object[] values) {
+		private long count(AbstractJpaQuery repositoryQuery, JpaParametersParameterAccessor accessor) {
 
-			List<?> totals = repositoryQuery.createCountQuery(values).getResultList();
+			List<?> totals = repositoryQuery.createCountQuery(accessor).getResultList();
 			return (totals.size() == 1 ? CONVERSION_SERVICE.convert(totals.get(0), Long.class) : totals.size());
 		}
 	}
@@ -209,9 +191,9 @@ public abstract class JpaQueryExecution {
 	static class SingleEntityExecution extends JpaQueryExecution {
 
 		@Override
-		protected Object doExecute(AbstractJpaQuery query, Object[] values) {
+		protected Object doExecute(AbstractJpaQuery query, JpaParametersParameterAccessor accessor) {
 
-			return query.createQuery(values).getSingleResult();
+			return query.createQuery(accessor).getSingleResult();
 		}
 	}
 
@@ -225,8 +207,8 @@ public abstract class JpaQueryExecution {
 		private final boolean clear;
 
 		/**
-		 * Creates an execution that automatically flushes the given {@link EntityManager} before execution and/or
-		 * clears the given {@link EntityManager} after execution.
+		 * Creates an execution that automatically flushes the given {@link EntityManager} before execution and/or clears
+		 * the given {@link EntityManager} after execution.
 		 *
 		 * @param em Must not be {@literal null}.
 		 */
@@ -247,13 +229,13 @@ public abstract class JpaQueryExecution {
 		}
 
 		@Override
-		protected Object doExecute(AbstractJpaQuery query, Object[] values) {
+		protected Object doExecute(AbstractJpaQuery query, JpaParametersParameterAccessor accessor) {
 
 			if (flush) {
 				em.flush();
 			}
 
-			int result = query.createQuery(values).executeUpdate();
+			int result = query.createQuery(accessor).executeUpdate();
 
 			if (clear) {
 				em.clear();
@@ -283,9 +265,9 @@ public abstract class JpaQueryExecution {
 		 * @see org.springframework.data.jpa.repository.query.JpaQueryExecution#doExecute(org.springframework.data.jpa.repository.query.AbstractJpaQuery, java.lang.Object[])
 		 */
 		@Override
-		protected Object doExecute(AbstractJpaQuery jpaQuery, Object[] values) {
+		protected Object doExecute(AbstractJpaQuery jpaQuery, JpaParametersParameterAccessor accessor) {
 
-			Query query = jpaQuery.createQuery(values);
+			Query query = jpaQuery.createQuery(accessor);
 			List<?> resultList = query.getResultList();
 
 			for (Object o : resultList) {
@@ -305,8 +287,8 @@ public abstract class JpaQueryExecution {
 	static class ExistsExecution extends JpaQueryExecution {
 
 		@Override
-		protected Object doExecute(AbstractJpaQuery query, Object[] values) {
-			return !query.createQuery(values).getResultList().isEmpty();
+		protected Object doExecute(AbstractJpaQuery query, JpaParametersParameterAccessor accessor) {
+			return !query.createQuery(accessor).getResultList().isEmpty();
 		}
 	}
 
@@ -323,12 +305,12 @@ public abstract class JpaQueryExecution {
 		 * @see org.springframework.data.jpa.repository.query.JpaQueryExecution#doExecute(org.springframework.data.jpa.repository.query.AbstractJpaQuery, java.lang.Object[])
 		 */
 		@Override
-		protected Object doExecute(AbstractJpaQuery jpaQuery, Object[] values) {
+		protected Object doExecute(AbstractJpaQuery jpaQuery, JpaParametersParameterAccessor accessor) {
 
 			Assert.isInstanceOf(StoredProcedureJpaQuery.class, jpaQuery);
 
 			StoredProcedureJpaQuery storedProcedureJpaQuery = (StoredProcedureJpaQuery) jpaQuery;
-			StoredProcedureQuery storedProcedure = storedProcedureJpaQuery.createQuery(values);
+			StoredProcedureQuery storedProcedure = storedProcedureJpaQuery.createQuery(accessor);
 			storedProcedure.execute();
 
 			return storedProcedureJpaQuery.extractOutputValue(storedProcedure);
@@ -349,16 +331,16 @@ public abstract class JpaQueryExecution {
 
 		/*
 		 * (non-Javadoc)
-		 * @see org.springframework.data.jpa.repository.query.JpaQueryExecution#doExecute(org.springframework.data.jpa.repository.query.AbstractJpaQuery, java.lang.Object[])
+		 * @see org.springframework.data.jpa.repository.query.JpaQueryExecution#doExecute(org.springframework.data.jpa.repository.query.AbstractJpaQuery, JpaParametersParameterAccessor)
 		 */
 		@Override
-		protected Object doExecute(final AbstractJpaQuery query, Object[] values) {
+		protected Object doExecute(final AbstractJpaQuery query, JpaParametersParameterAccessor accessor) {
 
 			if (!SurroundingTransactionDetectorMethodInterceptor.INSTANCE.isSurroundingTransactionActive()) {
 				throw new InvalidDataAccessApiUsageException(NO_SURROUNDING_TRANSACTION);
 			}
 
-			Query jpaQuery = query.createQuery(values);
+			Query jpaQuery = query.createQuery(accessor);
 
 			// JPA 2.2 on the classpath
 			if (streamMethod != null) {

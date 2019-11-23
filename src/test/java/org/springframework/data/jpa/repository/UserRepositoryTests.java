@@ -1,11 +1,11 @@
 /*
- * Copyright 2008-2018 the original author or authors.
+ * Copyright 2008-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -48,6 +48,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Example;
@@ -60,6 +61,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.domain.Sort.Order;
+import org.springframework.data.domain.ExampleMatcher.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.domain.sample.Address;
 import org.springframework.data.jpa.domain.sample.Role;
@@ -87,6 +89,7 @@ import com.google.common.base.Optional;
  * @author Mark Paluch
  * @author Kevin Peters
  * @author Jens Schauder
+ * @author Andrey Kovalev
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context.xml")
@@ -2119,8 +2122,8 @@ public class UserRepositoryTests {
 
 		flushTestUsers();
 
-		Page<User> firstPage = repository.findByNativeNamedQueryWithPageable(new PageRequest(0, 3));
-		Page<User> secondPage = repository.findByNativeNamedQueryWithPageable(new PageRequest(1, 3));
+		Page<User> firstPage = repository.findByNativeNamedQueryWithPageable(PageRequest.of(0, 3));
+		Page<User> secondPage = repository.findByNativeNamedQueryWithPageable(PageRequest.of(1, 3));
 
 		SoftAssertions softly = new SoftAssertions();
 
@@ -2145,8 +2148,8 @@ public class UserRepositoryTests {
 
 		flushTestUsers();
 
-		Page<String> firstPage = repository.findByNativeQueryWithPageable(new PageRequest(0, 3));
-		Page<String> secondPage = repository.findByNativeQueryWithPageable(new PageRequest(1, 3));
+		Page<String> firstPage = repository.findByNativeQueryWithPageable(PageRequest.of(0, 3));
+		Page<String> secondPage = repository.findByNativeQueryWithPageable(PageRequest.of(1, 3));
 
 		SoftAssertions softly = new SoftAssertions();
 
@@ -2207,6 +2210,74 @@ public class UserRepositoryTests {
 		flushTestUsers();
 
 		assertThat(repository.findByEmailNativeAddressJdbcStyleParameter("gierke@synyx.de")).isEqualTo(firstUser);
+	}
+
+	@Test // DATAJPA-1535
+	public void savingUserThrowsAnException() {
+		// if this test fails this means deleteNewInstanceSucceedsByDoingNothing() might actually save the user without the
+		// test failing, which would be a bad thing.
+		assertThatThrownBy(() -> repository.save(new User())).isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	@Test // DATAJPA-1535
+	public void deleteNewInstanceSucceedsByDoingNothing() {
+		repository.delete(new User());
+	}
+
+	@Test // DATAJPA-1303
+	public void findByElementCollectionInAttributeIgnoreCase() {
+
+		firstUser.getAttributes().add("cOOl");
+		secondUser.getAttributes().add("hIp");
+		thirdUser.getAttributes().add("roCKsTar");
+
+		flushTestUsers();
+
+		List<User> result = repository.findByAttributesIgnoreCaseIn(new HashSet<>(Arrays.asList("cOOl", "hIP")));
+
+		assertThat(result).containsOnly(firstUser, secondUser);
+	}
+
+	@Test // DATAJPA-1303
+	public void findByElementCollectionNotInAttributeIgnoreCase() {
+
+		firstUser.getAttributes().add("cOOl");
+		secondUser.getAttributes().add("hIp");
+		thirdUser.getAttributes().add("rOckStAr");
+
+		flushTestUsers();
+
+		List<User> result = repository.findByAttributesIgnoreCaseNotIn(Arrays.asList("CooL", "HIp"));
+
+		assertThat(result).containsOnly(thirdUser);
+	}
+
+	@Test // DATAJPA-1303
+	public void findByElementVarargInAttributeIgnoreCase() {
+
+		firstUser.getAttributes().add("cOOl");
+		secondUser.getAttributes().add("hIp");
+		thirdUser.getAttributes().add("rOckStAr");
+
+		flushTestUsers();
+
+		Page<User> result = repository.findByAttributesIgnoreCaseIn(PageRequest.of(0, 20), "CooL", "HIp");
+
+		assertThat(result).containsOnly(firstUser, secondUser);
+	}
+
+	@Test // DATAJPA-1303
+	public void findByElementCollectionInAttributeIgnoreCaseWithNulls() {
+
+		firstUser.getAttributes().add("cOOl");
+		secondUser.getAttributes().add("hIp");
+		thirdUser.getAttributes().add("roCKsTar");
+
+		flushTestUsers();
+
+		List<User> result = repository.findByAttributesIgnoreCaseIn(Arrays.asList("cOOl", null));
+
+		assertThat(result).containsOnly(firstUser);
 	}
 
 	private Page<User> executeSpecWithSort(Sort sort) {

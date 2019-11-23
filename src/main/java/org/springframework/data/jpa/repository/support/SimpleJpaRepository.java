@@ -1,11 +1,11 @@
 /*
- * Copyright 2008-2018 the original author or authors.
+ * Copyright 2008-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ package org.springframework.data.jpa.repository.support;
 import static org.springframework.data.jpa.repository.query.QueryUtils.*;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -48,9 +49,11 @@ import org.springframework.data.jpa.convert.QueryByExamplePredicateBuilder;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.provider.PersistenceProvider;
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.query.EscapeCharacter;
 import org.springframework.data.jpa.repository.query.QueryUtils;
 import org.springframework.data.jpa.repository.support.QueryHints.NoHints;
 import org.springframework.data.repository.support.PageableExecutionUtils;
+import org.springframework.data.util.ProxyUtils;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +70,8 @@ import org.springframework.util.Assert;
  * @author Christoph Strobl
  * @author Stefan Fussenegger
  * @author Jens Schauder
+ * @author David Madden
+ * @author Moritz Becker
  * @param <T> the type of the entity to handle
  * @param <ID> the type of the entity's identifier
  */
@@ -81,6 +86,20 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	private final PersistenceProvider provider;
 
 	private @Nullable CrudMethodMetadata metadata;
+	private EscapeCharacter escapeCharacter = EscapeCharacter.DEFAULT;
+
+	private static <T> Collection<T> toCollection(Iterable<T> ts) {
+
+		if (ts instanceof Collection) {
+			return (Collection<T>) ts;
+		}
+
+		List<T> tCollection = new ArrayList<T>();
+		for (T t : ts) {
+			tCollection.add(t);
+		}
+		return tCollection;
+	}
 
 	/**
 	 * Creates a new {@link SimpleJpaRepository} to manage objects of the given {@link JpaEntityInformation}.
@@ -114,8 +133,14 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 *
 	 * @param crudMethodMetadata
 	 */
+	@Override
 	public void setRepositoryMethodMetadata(CrudMethodMetadata crudMethodMetadata) {
 		this.metadata = crudMethodMetadata;
+	}
+
+	@Override
+	public void setEscapeCharacter(EscapeCharacter escapeCharacter) {
+		this.escapeCharacter = escapeCharacter;
 	}
 
 	@Nullable
@@ -142,6 +167,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * @see org.springframework.data.repository.CrudRepository#delete(java.io.Serializable)
 	 */
 	@Transactional
+	@Override
 	public void deleteById(ID id) {
 
 		Assert.notNull(id, ID_MUST_NOT_BE_NULL);
@@ -154,10 +180,26 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.repository.CrudRepository#delete(java.lang.Object)
 	 */
+	@Override
 	@Transactional
+	@SuppressWarnings("unchecked")
 	public void delete(T entity) {
 
-		Assert.notNull(entity, "The entity must not be null!");
+		Assert.notNull(entity, "Entity must not be null!");
+
+		if (entityInformation.isNew(entity)) {
+			return;
+		}
+
+		Class<?> type = ProxyUtils.getUserClass(entity);
+
+		T existing = (T) em.find(type, entityInformation.getId(entity));
+
+		// if the entity to be deleted doesn't exist, delete is a NOOP
+		if (existing == null) {
+			return;
+		}
+
 		em.remove(em.contains(entity) ? entity : em.merge(entity));
 	}
 
@@ -166,9 +208,10 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * @see org.springframework.data.repository.CrudRepository#delete(java.lang.Iterable)
 	 */
 	@Transactional
+	@Override
 	public void deleteAll(Iterable<? extends T> entities) {
 
-		Assert.notNull(entities, "The given Iterable of entities not be null!");
+		Assert.notNull(entities, "Entities must not be null!");
 
 		for (T entity : entities) {
 			delete(entity);
@@ -180,9 +223,10 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * @see org.springframework.data.jpa.repository.JpaRepository#deleteInBatch(java.lang.Iterable)
 	 */
 	@Transactional
+	@Override
 	public void deleteInBatch(Iterable<T> entities) {
 
-		Assert.notNull(entities, "The given Iterable of entities not be null!");
+		Assert.notNull(entities, "Entities must not be null!");
 
 		if (!entities.iterator().hasNext()) {
 			return;
@@ -197,6 +241,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * @see org.springframework.data.repository.Repository#deleteAll()
 	 */
 	@Transactional
+	@Override
 	public void deleteAll() {
 
 		for (T element : findAll()) {
@@ -209,6 +254,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * @see org.springframework.data.jpa.repository.JpaRepository#deleteAllInBatch()
 	 */
 	@Transactional
+	@Override
 	public void deleteAllInBatch() {
 		em.createQuery(getDeleteAllQueryString()).executeUpdate();
 	}
@@ -217,6 +263,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.repository.CrudRepository#findById(java.io.Serializable)
 	 */
+	@Override
 	public Optional<T> findById(ID id) {
 
 		Assert.notNull(id, ID_MUST_NOT_BE_NULL);
@@ -259,6 +306,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.repository.CrudRepository#existsById(java.io.Serializable)
 	 */
+	@Override
 	public boolean existsById(ID id) {
 
 		Assert.notNull(id, ID_MUST_NOT_BE_NULL);
@@ -302,6 +350,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.jpa.repository.JpaRepository#findAll()
 	 */
+	@Override
 	public List<T> findAll() {
 		return getQuery(null, Sort.unsorted()).getResultList();
 	}
@@ -310,9 +359,10 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.repository.CrudRepository#findAll(java.lang.Iterable)
 	 */
+	@Override
 	public List<T> findAllById(Iterable<ID> ids) {
 
-		Assert.notNull(ids, "The given Iterable of Id's must not be null!");
+		Assert.notNull(ids, "Ids must not be null!");
 
 		if (!ids.iterator().hasNext()) {
 			return Collections.emptyList();
@@ -329,16 +379,19 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 			return results;
 		}
 
+		Collection<ID> idCollection = toCollection(ids);
+
 		ByIdsSpecification<T> specification = new ByIdsSpecification<T>(entityInformation);
 		TypedQuery<T> query = getQuery(specification, Sort.unsorted());
 
-		return query.setParameter(specification.parameter, ids).getResultList();
+		return query.setParameter(specification.parameter, idCollection).getResultList();
 	}
 
 	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.data.jpa.repository.JpaRepository#findAll(org.springframework.data.domain.Sort)
 	 */
+	@Override
 	public List<T> findAll(Sort sort) {
 		return getQuery(null, sort).getResultList();
 	}
@@ -347,6 +400,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.repository.PagingAndSortingRepository#findAll(org.springframework.data.domain.Pageable)
 	 */
+	@Override
 	public Page<T> findAll(Pageable pageable) {
 
 		if (isUnpaged(pageable)) {
@@ -360,6 +414,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.jpa.repository.JpaSpecificationExecutor#findOne(org.springframework.data.jpa.domain.Specification)
 	 */
+	@Override
 	public Optional<T> findOne(@Nullable Specification<T> spec) {
 
 		try {
@@ -373,6 +428,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.jpa.repository.JpaSpecificationExecutor#findAll(org.springframework.data.jpa.domain.Specification)
 	 */
+	@Override
 	public List<T> findAll(@Nullable Specification<T> spec) {
 		return getQuery(spec, Sort.unsorted()).getResultList();
 	}
@@ -381,6 +437,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.jpa.repository.JpaSpecificationExecutor#findAll(org.springframework.data.jpa.domain.Specification, org.springframework.data.domain.Pageable)
 	 */
+	@Override
 	public Page<T> findAll(@Nullable Specification<T> spec, Pageable pageable) {
 
 		TypedQuery<T> query = getQuery(spec, pageable);
@@ -392,6 +449,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.jpa.repository.JpaSpecificationExecutor#findAll(org.springframework.data.jpa.domain.Specification, org.springframework.data.domain.Sort)
 	 */
+	@Override
 	public List<T> findAll(@Nullable Specification<T> spec, Sort sort) {
 		return getQuery(spec, sort).getResultList();
 	}
@@ -404,8 +462,9 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	public <S extends T> Optional<S> findOne(Example<S> example) {
 
 		try {
-			return Optional.of(
-					getQuery(new ExampleSpecification<S>(example), example.getProbeType(), Sort.unsorted()).getSingleResult());
+			return Optional
+					.of(getQuery(new ExampleSpecification<S>(example, escapeCharacter), example.getProbeType(), Sort.unsorted())
+							.getSingleResult());
 		} catch (NoResultException e) {
 			return Optional.empty();
 		}
@@ -417,7 +476,8 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 */
 	@Override
 	public <S extends T> long count(Example<S> example) {
-		return executeCountQuery(getCountQuery(new ExampleSpecification<S>(example), example.getProbeType()));
+		return executeCountQuery(
+				getCountQuery(new ExampleSpecification<S>(example, escapeCharacter), example.getProbeType()));
 	}
 
 	/*
@@ -426,8 +486,8 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 */
 	@Override
 	public <S extends T> boolean exists(Example<S> example) {
-		return !getQuery(new ExampleSpecification<S>(example), example.getProbeType(), Sort.unsorted()).getResultList()
-				.isEmpty();
+		return !getQuery(new ExampleSpecification<S>(example, escapeCharacter), example.getProbeType(), Sort.unsorted())
+				.getResultList().isEmpty();
 	}
 
 	/*
@@ -436,7 +496,8 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 */
 	@Override
 	public <S extends T> List<S> findAll(Example<S> example) {
-		return getQuery(new ExampleSpecification<S>(example), example.getProbeType(), Sort.unsorted()).getResultList();
+		return getQuery(new ExampleSpecification<S>(example, escapeCharacter), example.getProbeType(), Sort.unsorted())
+				.getResultList();
 	}
 
 	/*
@@ -445,7 +506,8 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 */
 	@Override
 	public <S extends T> List<S> findAll(Example<S> example, Sort sort) {
-		return getQuery(new ExampleSpecification<S>(example), example.getProbeType(), sort).getResultList();
+		return getQuery(new ExampleSpecification<S>(example, escapeCharacter), example.getProbeType(), sort)
+				.getResultList();
 	}
 
 	/*
@@ -455,9 +517,9 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	@Override
 	public <S extends T> Page<S> findAll(Example<S> example, Pageable pageable) {
 
-		ExampleSpecification<S> spec = new ExampleSpecification<>(example);
+		ExampleSpecification<S> spec = new ExampleSpecification<>(example, escapeCharacter);
 		Class<S> probeType = example.getProbeType();
-		TypedQuery<S> query = getQuery(new ExampleSpecification<>(example), probeType, pageable);
+		TypedQuery<S> query = getQuery(new ExampleSpecification<>(example, escapeCharacter), probeType, pageable);
 
 		return isUnpaged(pageable) ? new PageImpl<>(query.getResultList()) : readPage(query, probeType, pageable, spec);
 	}
@@ -466,6 +528,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.repository.CrudRepository#count()
 	 */
+	@Override
 	public long count() {
 		return em.createQuery(getCountQueryString(), Long.class).getSingleResult();
 	}
@@ -474,6 +537,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * (non-Javadoc)
 	 * @see org.springframework.data.jpa.repository.JpaSpecificationExecutor#count(org.springframework.data.jpa.domain.Specification)
 	 */
+	@Override
 	public long count(@Nullable Specification<T> spec) {
 		return executeCountQuery(getCountQuery(spec, getDomainClass()));
 	}
@@ -483,6 +547,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * @see org.springframework.data.repository.CrudRepository#save(java.lang.Object)
 	 */
 	@Transactional
+	@Override
 	public <S extends T> S save(S entity) {
 
 		if (entityInformation.isNew(entity)) {
@@ -498,6 +563,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * @see org.springframework.data.jpa.repository.JpaRepository#saveAndFlush(java.lang.Object)
 	 */
 	@Transactional
+	@Override
 	public <S extends T> S saveAndFlush(S entity) {
 
 		S result = save(entity);
@@ -511,9 +577,10 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * @see org.springframework.data.jpa.repository.JpaRepository#save(java.lang.Iterable)
 	 */
 	@Transactional
+	@Override
 	public <S extends T> List<S> saveAll(Iterable<S> entities) {
 
-		Assert.notNull(entities, "The given Iterable of entities not be null!");
+		Assert.notNull(entities, "Entities must not be null!");
 
 		List<S> result = new ArrayList<S>();
 
@@ -529,6 +596,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * @see org.springframework.data.jpa.repository.JpaRepository#flush()
 	 */
 	@Transactional
+	@Override
 	public void flush() {
 		em.flush();
 	}
@@ -727,12 +795,12 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 	 * @param query must not be {@literal null}.
 	 * @return
 	 */
-	private static Long executeCountQuery(TypedQuery<Long> query) {
+	private static long executeCountQuery(TypedQuery<Long> query) {
 
 		Assert.notNull(query, "TypedQuery must not be null!");
 
 		List<Long> totals = query.getResultList();
-		Long total = 0L;
+		long total = 0L;
 
 		for (Long element : totals) {
 			total += element == null ? 0 : element;
@@ -760,7 +828,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 
 		private final JpaEntityInformation<T, ?> entityInformation;
 
-		@Nullable ParameterExpression<Iterable> parameter;
+		@Nullable ParameterExpression<Collection<?>> parameter;
 
 		ByIdsSpecification(JpaEntityInformation<T, ?> entityInformation) {
 			this.entityInformation = entityInformation;
@@ -770,10 +838,11 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 		 * (non-Javadoc)
 		 * @see org.springframework.data.jpa.domain.Specification#toPredicate(javax.persistence.criteria.Root, javax.persistence.criteria.CriteriaQuery, javax.persistence.criteria.CriteriaBuilder)
 		 */
+		@Override
 		public Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
 
 			Path<?> path = root.get(entityInformation.getIdAttribute());
-			parameter = cb.parameter(Iterable.class);
+			parameter = (ParameterExpression<Collection<?>>) (ParameterExpression) cb.parameter(Collection.class);
 			return path.in(parameter);
 		}
 	}
@@ -791,16 +860,21 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 		private static final long serialVersionUID = 1L;
 
 		private final Example<T> example;
+		private final EscapeCharacter escapeCharacter;
 
 		/**
 		 * Creates new {@link ExampleSpecification}.
 		 *
 		 * @param example
+		 * @param escapeCharacter
 		 */
-		ExampleSpecification(Example<T> example) {
+		ExampleSpecification(Example<T> example, EscapeCharacter escapeCharacter) {
 
 			Assert.notNull(example, "Example must not be null!");
+			Assert.notNull(escapeCharacter, "EscapeCharacter must not be null!");
+
 			this.example = example;
+			this.escapeCharacter = escapeCharacter;
 		}
 
 		/*
@@ -809,7 +883,7 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
 		 */
 		@Override
 		public Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
-			return QueryByExamplePredicateBuilder.getPredicate(root, cb, example);
+			return QueryByExamplePredicateBuilder.getPredicate(root, cb, example, escapeCharacter);
 		}
 	}
 }

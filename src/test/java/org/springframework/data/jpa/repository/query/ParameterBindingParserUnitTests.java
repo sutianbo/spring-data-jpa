@@ -1,11 +1,11 @@
 /*
- * Copyright 2017-2018 the original author or authors.
+ * Copyright 2017-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,12 +15,8 @@
  */
 package org.springframework.data.jpa.repository.query;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.assertj.core.api.SoftAssertions;
 import org.junit.Test;
-import org.springframework.data.jpa.repository.query.StringQuery.ParameterBinding;
 import org.springframework.data.jpa.repository.query.StringQuery.ParameterBindingParser;
 
 /**
@@ -31,7 +27,7 @@ import org.springframework.data.jpa.repository.query.StringQuery.ParameterBindin
 public class ParameterBindingParserUnitTests {
 
 	@Test // DATAJPA-1200
-	public void idenficationOfParameters() {
+	public void identificationOfParameters() {
 
 		SoftAssertions softly = new SoftAssertions();
 
@@ -67,12 +63,11 @@ public class ParameterBindingParserUnitTests {
 		softly.assertAll();
 	}
 
-	public void checkHasParameter(SoftAssertions softly, String query, boolean containsParameter, String label) {
+	private void checkHasParameter(SoftAssertions softly, String query, boolean containsParameter, String label) {
 
-		List<ParameterBinding> bindings = new ArrayList<>();
-		ParameterBindingParser.INSTANCE.parseParameterBindingsOfQueryIntoBindingsAndReturnCleanedQuery(query, bindings,
-				new StringQuery.Metadata());
-		softly.assertThat(bindings.size()) //
+		StringQuery stringQuery = new StringQuery(query);
+
+		softly.assertThat(stringQuery.getParameterBindings().size()) //
 				.describedAs(String.format("<%s> (%s)", query, label)) //
 				.isEqualTo(containsParameter ? 1 : 0);
 	}

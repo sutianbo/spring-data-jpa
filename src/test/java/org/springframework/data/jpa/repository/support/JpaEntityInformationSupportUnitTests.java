@@ -1,11 +1,11 @@
 /*
- * Copyright 2011-2018 the original author or authors.
+ * Copyright 2011-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,7 +15,7 @@
  */
 package org.springframework.data.jpa.repository.support;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.io.Serializable;
@@ -35,6 +35,7 @@ import org.mockito.junit.MockitoJUnitRunner;
  * Unit tests for {@link AbstractJpaEntityInformation}.
  *
  * @author Oliver Gierke
+ * @author Jens Schauder
  */
 @RunWith(MockitoJUnitRunner.class)
 public class JpaEntityInformationSupportUnitTests {
@@ -46,10 +47,10 @@ public class JpaEntityInformationSupportUnitTests {
 	public void usesSimpleClassNameIfNoEntityNameGiven() throws Exception {
 
 		JpaEntityInformation<User, Long> information = new DummyJpaEntityInformation<User, Long>(User.class);
-		assertEquals("User", information.getEntityName());
+		assertThat(information.getEntityName()).isEqualTo("User");
 
 		JpaEntityInformation<NamedUser, ?> second = new DummyJpaEntityInformation<NamedUser, Serializable>(NamedUser.class);
-		assertEquals("AnotherNamedUser", second.getEntityName());
+		assertThat(second.getEntityName()).isEqualTo("AnotherNamedUser");
 	}
 
 	@Test(expected = IllegalArgumentException.class) // DATAJPA-93
@@ -63,39 +64,45 @@ public class JpaEntityInformationSupportUnitTests {
 
 	}
 
-	@Entity(name = "AnotherNamedUser")
-	public class NamedUser {
-
-	}
-
 	static class DummyJpaEntityInformation<T, ID> extends JpaEntityInformationSupport<T, ID> {
 
 		public DummyJpaEntityInformation(Class<T> domainClass) {
 			super(domainClass);
 		}
 
+		@Override
 		public SingularAttribute<? super T, ?> getIdAttribute() {
 			return null;
 		}
 
+		@Override
 		public ID getId(T entity) {
 			return null;
 		}
 
+		@Override
 		public Class<ID> getIdType() {
 			return null;
 		}
 
+		@Override
 		public Iterable<String> getIdAttributeNames() {
 			return Collections.emptySet();
 		}
 
+		@Override
 		public boolean hasCompositeId() {
 			return false;
 		}
 
+		@Override
 		public Object getCompositeIdAttributeValue(Object id, String idAttribute) {
 			return null;
 		}
+	}
+
+	@Entity(name = "AnotherNamedUser")
+	public class NamedUser {
+
 	}
 }

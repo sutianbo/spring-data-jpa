@@ -1,11 +1,11 @@
 /*
- * Copyright 2008-2018 the original author or authors.
+ * Copyright 2008-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -50,6 +50,9 @@ import com.google.common.base.Optional;
  * @author Oliver Gierke
  * @author Thomas Darimont
  * @author Kevin Peters
+ * @author Jeff Sheets
+ * @author Andrey Kovalev
+ * @author JyotirmoyVS
  */
 public interface UserRepository
 		extends JpaRepository<User, Integer>, JpaSpecificationExecutor<User>, UserRepositoryCustom {
@@ -68,6 +71,7 @@ public interface UserRepository
 	 * Redeclaration of {@link CrudRepository#findById(java.io.Serializable)} to change transaction configuration.
 	 */
 	@Transactional
+	@Override
 	java.util.Optional<User> findById(Integer primaryKey);
 
 	/**
@@ -75,6 +79,7 @@ public interface UserRepository
 	 * configuration of the original method is considered if the redeclaration does not carry a {@link Transactional}
 	 * annotation.
 	 */
+	@Override
 	void deleteById(Integer id); // DATACMNS-649
 
 	/**
@@ -317,10 +322,45 @@ public interface UserRepository
 	Integer plus1inout(Integer arg);
 
 	/**
+	 * Implicitly mapped to a procedure with name "plus1inout" in database via alias. Showing that outputParameterName is
+	 * ignored when not a NamedStoredProcedure
+	 */
+	@Procedure(procedureName = "plus1inout", outputParameterName = "fakeName") // DATAJPA-707
+	Integer plus1inoutInvalidOutParamName(Integer arg);
+
+	/**
 	 * Explicitly mapped to named stored procedure "User.plus1IO" in {@link EntityManager}.
 	 */
 	@Procedure(name = "User.plus1IO") // DATAJPA-455
 	Integer entityAnnotatedCustomNamedProcedurePlus1IO(@Param("arg") Integer arg);
+
+	/**
+	 * Explicitly mapped to named stored procedure "User.plus1IO" in {@link EntityManager}. with an invalid
+	 * outputParameterName - test will fail
+	 */
+	@Procedure(name = "User.plus1IO", outputParameterName = "fakeName") // DATAJPA-707
+	Integer entityAnnotatedCustomNamedProcedurePlus1IOInvalidOutParamName(@Param("arg") Integer arg);
+
+	/**
+	 * Explicitly mapped to named stored procedure "User.plus1IO2" in {@link EntityManager}. Stored Proc has 2 out params,
+	 * but naming one out param here so it only returns one
+	 */
+	@Procedure(name = "User.plus1IO2", outputParameterName = "res2") // DATAJPA-707
+	Integer entityAnnotatedCustomNamedProcedurePlus1IO2TwoOutParamsButNamingOne(@Param("arg") Integer arg);
+
+	/**
+	 * Explicitly mapped to named stored procedure "User.plus1IO2" in {@link EntityManager}. Returns 2 out params as a
+	 * Map.
+	 */
+	@Procedure(name = "User.plus1IO2") // DATAJPA-707 DATAJPA-1579
+	Map<String, Integer> entityAnnotatedCustomNamedProcedurePlus1IO2(@Param("arg") Integer arg);
+
+	/**
+	 * Explicitly mapped to named stored procedure "User.plus1IOoptional" in {@link EntityManager}. Returns 2 out params
+	 * as a Map, second one amoung which is null.
+	 */
+	@Procedure(name = "User.plus1IOoptional") // DATAJPA-1579
+	Map<String, Integer> entityAnnotatedCustomNamedProcedurePlus1IOoptional(@Param("arg") Integer arg);
 
 	/**
 	 * Implicitly mapped to named stored procedure "User.plus1" in {@link EntityManager}.
@@ -424,13 +464,13 @@ public interface UserRepository
 	List<User> findUsersByFirstnameForSpELExpressionWithParameterIndexOnly(String firstname);
 
 	// DATAJPA-564
-	@Query(
-			value = "select * from (" +
-					"select u.*, rownum() as RN from (" +
-					"select * from SD_User ORDER BY ucase(firstname)" +
-					") u" +
-					") where RN between ?#{ #pageable.offset +1 } and ?#{#pageable.offset + #pageable.pageSize}",
-			countQuery = "select count(u.id) from SD_User u", nativeQuery = true)
+	@Query(value = "select * from (" //
+			+ "select u.*, rownum() as RN from (" //
+			+ "select * from SD_User ORDER BY ucase(firstname)" //
+			+ ") u" //
+			+ ") where RN between ?#{ #pageable.offset +1 } and ?#{#pageable.offset + #pageable.pageSize}", //
+			countQuery = "select count(u.id) from SD_User u", //
+			nativeQuery = true)
 	Page<User> findUsersInNativeQueryWithPagination(Pageable pageable);
 
 	// DATAJPA-1140
@@ -527,11 +567,14 @@ public interface UserRepository
 	Page<User> findAllOrderedBySpecialNameSingleParam(@Param("name") String name, Pageable page);
 
 	// DATAJPA-1233
-	@Query(value = "SELECT u FROM User u WHERE :other = 'x' ORDER BY CASE WHEN (u.firstname  >= :name) THEN 0 ELSE 1 END, u.firstname")
-	Page<User> findAllOrderedBySpecialNameMultipleParams(@Param("name") String name, @Param("other") String other, Pageable page);
+	@Query(
+			value = "SELECT u FROM User u WHERE :other = 'x' ORDER BY CASE WHEN (u.firstname  >= :name) THEN 0 ELSE 1 END, u.firstname")
+	Page<User> findAllOrderedBySpecialNameMultipleParams(@Param("name") String name, @Param("other") String other,
+			Pageable page);
 
 	// DATAJPA-1233
-	@Query(value = "SELECT u FROM User u WHERE ?2 = 'x' ORDER BY CASE WHEN (u.firstname  >= ?1) THEN 0 ELSE 1 END, u.firstname")
+	@Query(
+			value = "SELECT u FROM User u WHERE ?2 = 'x' ORDER BY CASE WHEN (u.firstname  >= ?1) THEN 0 ELSE 1 END, u.firstname")
 	Page<User> findAllOrderedBySpecialNameMultipleParamsIndexed(String name, String other, Pageable page);
 
 	// DATAJPA-928
@@ -555,6 +598,19 @@ public interface UserRepository
 
 	// DATAJPA-1334
 	List<NameOnlyDto> findByNamedQueryWithConstructorExpression();
+
+	// DATAJPA-1519
+	@Query("select u from User u where u.lastname like %?#{escape([0])}% escape ?#{escapeCharacter()}")
+	List<User> findContainingEscaped(String namePart);
+
+	// DATAJPA-1303
+	List<User> findByAttributesIgnoreCaseIn(Collection<String> attributes);
+
+	// DATAJPA-1303
+	List<User> findByAttributesIgnoreCaseNotIn(Collection<String> attributes);
+
+	// DATAJPA-1303
+	Page<User> findByAttributesIgnoreCaseIn(Pageable pageable, String... attributes);
 
 	interface RolesAndFirstname {
 

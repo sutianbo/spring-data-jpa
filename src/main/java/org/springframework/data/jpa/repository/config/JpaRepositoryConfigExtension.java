@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -45,6 +45,7 @@ import org.springframework.dao.annotation.PersistenceExceptionTranslationPostPro
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.support.DefaultJpaContext;
 import org.springframework.data.jpa.repository.support.EntityManagerBeanDefinitionRegistrarPostProcessor;
+import org.springframework.data.jpa.repository.support.JpaEvaluationContextExtension;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
 import org.springframework.data.repository.config.AnnotationRepositoryConfigurationSource;
 import org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport;
@@ -75,6 +76,8 @@ public class JpaRepositoryConfigExtension extends RepositoryConfigurationExtensi
 	private static final Class<?> PAB_POST_PROCESSOR = PersistenceAnnotationBeanPostProcessor.class;
 	private static final String DEFAULT_TRANSACTION_MANAGER_BEAN_NAME = "transactionManager";
 	private static final String ENABLE_DEFAULT_TRANSACTIONS_ATTRIBUTE = "enableDefaultTransactions";
+	private static final String JPA_METAMODEL_CACHE_CLEANUP_CLASSNAME = "org.springframework.data.jpa.util.JpaMetamodelCacheCleanup";
+	private static final String ESCAPE_CHARACTER_PROPERTY = "escapeCharacter";
 
 	/*
 	 * (non-Javadoc)
@@ -131,7 +134,21 @@ public class JpaRepositoryConfigExtension extends RepositoryConfigurationExtensi
 		Optional<String> transactionManagerRef = source.getAttribute("transactionManagerRef");
 		builder.addPropertyValue("transactionManager", transactionManagerRef.orElse(DEFAULT_TRANSACTION_MANAGER_BEAN_NAME));
 		builder.addPropertyValue("entityManager", getEntityManagerBeanDefinitionFor(source, source.getSource()));
+		builder.addPropertyValue(ESCAPE_CHARACTER_PROPERTY, getEscapeCharacter(source).orElse('\\'));
 		builder.addPropertyReference("mappingContext", JPA_MAPPING_CONTEXT_BEAN_NAME);
+	}
+
+	/**
+	 * XML configurations do not support {@link Character} values. This method catches the exception thrown and returns an
+	 * {@link Optional#empty()} instead.
+	 */
+	private static Optional<Character> getEscapeCharacter(RepositoryConfigurationSource source) {
+
+		try {
+			return source.getAttribute(ESCAPE_CHARACTER_PROPERTY, Character.class);
+		} catch (IllegalArgumentException ___) {
+			return Optional.empty();
+		}
 	}
 
 	/*
@@ -172,27 +189,51 @@ public class JpaRepositoryConfigExtension extends RepositoryConfigurationExtensi
 
 		Object source = config.getSource();
 
-		registerIfNotAlreadyRegistered(new RootBeanDefinition(EntityManagerBeanDefinitionRegistrarPostProcessor.class),
-				registry, EM_BEAN_DEFINITION_REGISTRAR_POST_PROCESSOR_BEAN_NAME, source);
+		registerLazyIfNotAlreadyRegistered(
+				() -> new RootBeanDefinition(EntityManagerBeanDefinitionRegistrarPostProcessor.class), registry,
+				EM_BEAN_DEFINITION_REGISTRAR_POST_PROCESSOR_BEAN_NAME, source);
 
-		registerIfNotAlreadyRegistered(new RootBeanDefinition(JpaMetamodelMappingContextFactoryBean.class), registry,
-				JPA_MAPPING_CONTEXT_BEAN_NAME, source);
+		registerLazyIfNotAlreadyRegistered(() -> new RootBeanDefinition(JpaMetamodelMappingContextFactoryBean.class),
+				registry, JPA_MAPPING_CONTEXT_BEAN_NAME, source);
 
-		registerIfNotAlreadyRegistered(new RootBeanDefinition(PAB_POST_PROCESSOR), registry,
+		registerLazyIfNotAlreadyRegistered(() -> new RootBeanDefinition(PAB_POST_PROCESSOR), registry,
 				AnnotationConfigUtils.PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME, source);
 
 		// Register bean definition for DefaultJpaContext
 
-		RootBeanDefinition contextDefinition = new RootBeanDefinition(DefaultJpaContext.class);
-		contextDefinition.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR);
+		registerLazyIfNotAlreadyRegistered(() -> {
 
-		registerIfNotAlreadyRegistered(contextDefinition, registry, JPA_CONTEXT_BEAN_NAME, source);
+			RootBeanDefinition contextDefinition = new RootBeanDefinition(DefaultJpaContext.class);
+			contextDefinition.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR);
+
+			return contextDefinition;
+
+		}, registry, JPA_CONTEXT_BEAN_NAME, source);
+
+		registerIfNotAlreadyRegistered(() -> new RootBeanDefinition(JPA_METAMODEL_CACHE_CLEANUP_CLASSNAME), registry,
+				JPA_METAMODEL_CACHE_CLEANUP_CLASSNAME, source);
+
+		// EvaluationContextExtension for JPA specific SpEL functions
+
+		registerIfNotAlreadyRegistered(() -> {
+
+			Object value = AnnotationRepositoryConfigurationSource.class.isInstance(config) //
+					? config.getRequiredAttribute(ESCAPE_CHARACTER_PROPERTY, Character.class) //
+					: config.getAttribute(ESCAPE_CHARACTER_PROPERTY).orElse("\\");
+
+			BeanDefinitionBuilder builder = BeanDefinitionBuilder.rootBeanDefinition(JpaEvaluationContextExtension.class);
+			builder.addConstructorArgValue(value);
+
+			return builder.getBeanDefinition();
+
+		}, registry, JpaEvaluationContextExtension.class.getName(), source);
 	}
 
 	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport#getConfigurationInspectionClassLoader(org.springframework.core.io.ResourceLoader)
 	 */
+	@Override
 	protected ClassLoader getConfigurationInspectionClassLoader(ResourceLoader loader) {
 
 		ClassLoader classLoader = loader.getClassLoader();

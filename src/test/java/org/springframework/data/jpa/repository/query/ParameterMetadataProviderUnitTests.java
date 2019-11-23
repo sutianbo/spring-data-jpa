@@ -1,11 +1,11 @@
 /*
- * Copyright 2017-2018 the original author or authors.
+ * Copyright 2017-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,7 +15,7 @@
  */
 package org.springframework.data.jpa.repository.query;
 
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.util.Collections;
@@ -44,7 +44,7 @@ public class ParameterMetadataProviderUnitTests {
 		when(parameters.getBindableParameters().iterator()).thenReturn(Collections.emptyListIterator());
 
 		ParameterMetadataProvider metadataProvider = new ParameterMetadataProvider(builder, parameters,
-				persistenceProvider);
+				persistenceProvider, EscapeCharacter.DEFAULT);
 
 		assertThatExceptionOfType(RuntimeException.class) //
 				.isThrownBy(() -> metadataProvider.next(mock(Part.class))) //

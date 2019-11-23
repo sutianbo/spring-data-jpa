@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,7 +27,9 @@ import javax.persistence.EntityManagerFactory;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.context.annotation.ComponentScan.Filter;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
+import org.springframework.data.repository.config.BootstrapMode;
 import org.springframework.data.repository.config.DefaultRepositoryBaseClass;
 import org.springframework.data.repository.query.QueryLookupStrategy;
 import org.springframework.data.repository.query.QueryLookupStrategy.Key;
@@ -150,4 +152,26 @@ public @interface EnableJpaRepositories {
 	 * @return whether to enable default transactions, defaults to {@literal true}.
 	 */
 	boolean enableDefaultTransactions() default true;
+
+	/**
+	 * Configures when the repositories are initialized in the bootstrap lifecycle. {@link BootstrapMode#DEFAULT}
+	 * (default) means eager initialization except all repository interfaces annotated with {@link Lazy},
+	 * {@link BootstrapMode#LAZY} means lazy by default including injection of lazy-initialization proxies into client
+	 * beans so that those can be instantiated but will only trigger the initialization upon first repository usage (i.e a
+	 * method invocation on it). This means repositories can still be uninitialized when the application context has
+	 * completed its bootstrap. {@link BootstrapMode#DEFERRED} is fundamentally the same as {@link BootstrapMode#LAZY},
+	 * but triggers repository initialization when the application context finishes its bootstrap.
+	 * 
+	 * @return
+	 * @since 2.1
+	 */
+	BootstrapMode bootstrapMode() default BootstrapMode.DEFAULT;
+
+	/**
+	 * Configures what character is used to escape the wildcards {@literal _} and {@literal %} in derived queries with
+	 * {@literal contains}, {@literal startsWith} or {@literal endsWith} clauses.
+	 * 
+	 * @return a single character used for escaping.
+	 */
+	char escapeCharacter() default '\\';
 }

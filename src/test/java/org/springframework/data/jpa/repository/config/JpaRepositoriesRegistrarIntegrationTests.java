@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,7 @@
  */
 package org.springframework.data.jpa.repository.config;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
@@ -24,7 +23,6 @@ import java.util.List;
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.aop.Advisor;
@@ -97,14 +95,14 @@ public class JpaRepositoriesRegistrarIntegrationTests {
 
 	@Test
 	public void foo() {
-		assertThat(repository, is(notNullValue()));
+		assertThat(repository).isNotNull();
 	}
 
 	@Test // DATAJPA-330
 	public void doesNotProxyPlainAtRepositoryBeans() {
 
-		assertThat(sampleRepository, is(notNullValue()));
-		assertThat(ClassUtils.isCglibProxy(sampleRepository), is(false));
+		assertThat(sampleRepository).isNotNull();
+		assertThat(ClassUtils.isCglibProxy(sampleRepository)).isFalse();
 
 		assertExceptionTranslationActive(repository);
 	}
@@ -120,9 +118,11 @@ public class JpaRepositoriesRegistrarIntegrationTests {
 			return;
 		}
 
-		assertThat(repository, is(instanceOf(Advised.class)));
+		assertThat(repository).isInstanceOf(Advised.class);
 		List<Advisor> advisors = Arrays.asList(((Advised) repository).getAdvisors());
-		assertThat(advisors, Matchers.<Advisor> hasItem(Matchers.<Advisor> hasProperty("advice",
-				instanceOf(PersistenceExceptionTranslationInterceptor.class))));
+
+		assertThat(advisors) //
+				.extracting("advice") //
+				.hasAtLeastOneElementOfType(PersistenceExceptionTranslationInterceptor.class);
 	}
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2014-2018 the original author or authors.
+ * Copyright 2014-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,7 @@
  */
 package org.springframework.data.jpa.repository.support;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import javax.persistence.EntityManagerFactory;
@@ -33,8 +32,9 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
  * Unit tests for {@link EntityManagerBeanDefinitionRegistrarPostProcessor}.
  *
  * @author Oliver Gierke
+ * @author Jens Schauder
  */
-public class EntityManagerBeanDefinitionRegistratPostProcessorUnitTests {
+public class EntityManagerBeanDefinitionRegistrarPostProcessorUnitTests {
 
 	@Test // DATAJPA-453
 	public void findsBeanDefinitionInParentBeanFactory() {
@@ -47,7 +47,7 @@ public class EntityManagerBeanDefinitionRegistratPostProcessorUnitTests {
 		BeanFactoryPostProcessor processor = new EntityManagerBeanDefinitionRegistrarPostProcessor();
 		processor.postProcessBeanFactory(childFactory);
 
-		assertThat(beanFactory.getBeanDefinitionCount(), is(2));
+		assertThat(beanFactory.getBeanDefinitionCount()).isEqualTo(2);
 	}
 
 	@Test // DATAJPA-1005, DATAJPA-1045
@@ -62,7 +62,7 @@ public class EntityManagerBeanDefinitionRegistratPostProcessorUnitTests {
 		BeanFactoryPostProcessor processor = new EntityManagerBeanDefinitionRegistrarPostProcessor();
 		processor.postProcessBeanFactory(beanFactory);
 
-		assertThat(beanFactory.getBeanDefinitionCount(), is(2));
+		assertThat(beanFactory.getBeanDefinitionCount()).isEqualTo(2);
 	}
 
 	interface SpecialEntityManagerFactory extends EntityManagerFactory {}
